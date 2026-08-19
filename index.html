@@ -6677,9 +6677,20 @@ const GRADE_SUBJECTS = {
 };
 
 const SCHOOLS = [
-  'Madimba High School','Randburg Secondary','Soweto Academy',
-  'Thohoyandou High','Midrand Technical','Limpopo Combined',
-  'Tshwane North','Other',
+  'Cosmo City Sec',
+  'Dimani Agricultural High',
+  'Edison Nesengani Sec',
+  'Germiston High',
+  'Heather Secondary',
+  'Howick Secondary',
+  'Kempton Park High',
+  'Kharwastan Secondary',
+  'Masiagwala Sec',
+  'Murunwa High',
+  'Parktown Boys',
+  'Raisethorpe Secondary',
+  'Stanmore Secondary',
+  'Other',
 ];
 
 const WELLBEING_OPTS = [
@@ -6703,12 +6714,23 @@ let S = {
 // ─────────────────────────────────────────────────────────────
 // DEMO DATA (used when CONFIG.apiUrl === 'DEMO')
 // ─────────────────────────────────────────────────────────────
-// Default users — real LGM team. No demo sessions or mentees to avoid polluting real data.
+// Real LGM team — production users
 const DEMO_USERS = [
-  { id:'u1', name:'Thandi Mokoena',   role:'admin',  pin:'1234' },
-  { id:'u2', name:'Sipho Dlamini',    role:'mentor', pin:'2345' },
-  { id:'u3', name:'Lerato Khumalo',   role:'mentor', pin:'3456' },
-  { id:'u4', name:'Coordinator Demo', role:'admin',  pin:'0000' },
+  // Co-Ordinators AND Lead Mentors — admin access + appear in Lead Mentors dropdown
+  { id:'u1', name:'Livhuwani',  role:'admin',  pin:'123', group:'lead' },
+  { id:'u2', name:'Harishnee',  role:'admin',  pin:'456', group:'lead' },
+  { id:'u3', name:'Nash',       role:'admin',  pin:'789', group:'lead' },
+  // Lead Mentor (mentor access only)
+  { id:'u4', name:'Collin',     role:'mentor', pin:'321', group:'lead', leadMentor:'Harishnee' },
+  // Trainee Mentors — under Livhuwani
+  { id:'u5', name:'Renola',     role:'mentor', pin:'654', group:'trainee', leadMentor:'Livhuwani' },
+  { id:'u6', name:'Tshepo',     role:'mentor', pin:'987', group:'trainee', leadMentor:'Livhuwani' },
+  // Trainee Mentors — under Harishnee
+  { id:'u7', name:'Avasha',     role:'mentor', pin:'213', group:'trainee', leadMentor:'Harishnee' },
+  // Trainee Mentors — under Nash
+  { id:'u8', name:'Priya',      role:'mentor', pin:'546', group:'trainee', leadMentor:'Nash' },
+  { id:'u9', name:'Pravashni',  role:'mentor', pin:'879', group:'trainee', leadMentor:'Nash' },
+  { id:'u10',name:'Shailesh',   role:'mentor', pin:'312', group:'trainee', leadMentor:'Nash' },
 ];
 const DEMO_MENTEES  = [];
 const DEMO_SESSIONS = [];
@@ -6765,14 +6787,30 @@ function buildMentorSelectList() {
     el.textContent = CONFIG.year;
   });
 
-  // Build mentor dropdown (non-admin users only, not offboarded)
+  // Build mentor dropdown — grouped by Lead Mentor / Trainee Mentor
   const dropdown = document.getElementById('mentor-dropdown');
   if (!dropdown) return;
-  const mentors = S.users.filter(u => u.role !== 'admin' && !u.offboarded);
-  dropdown.innerHTML = '<option value="">&#8212; Select your name &#8212;</option>' +
-    mentors.map(u =>
-      `<option value="${u.id}">${u.name}</option>`
-    ).join('');
+  // Include admins with group:'lead' in the mentor dropdown (they are also Lead Mentors)
+  const mentors  = S.users.filter(function(u){ return !u.offboarded && (u.role !== 'admin' || u.group === 'lead'); });
+  const leads    = mentors.filter(function(u){ return u.group === 'lead'; });
+  const trainees = mentors.filter(function(u){ return u.group === 'trainee' || (!u.group && u.role === 'mentor'); });
+
+  var html = '<option value="">&#8212; Select your name &#8212;</option>';
+  if (leads.length) {
+    html += '<optgroup label="Lead Mentors">';
+    html += leads.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+    html += '</optgroup>';
+  }
+  if (trainees.length) {
+    html += '<optgroup label="Trainee Mentors">';
+    html += trainees.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+    html += '</optgroup>';
+  }
+  // Fallback: if no groups, show all
+  if (!leads.length && !trainees.length) {
+    html += mentors.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+  }
+  dropdown.innerHTML = html;
 
   // Show "name missing?" hint if no mentors found
   const hintEl = document.getElementById('missing-user-hint');
@@ -8543,7 +8581,7 @@ function importPage() {
       <td><select><option value="">—</option>${['8','9','10','11','12','Post Matric'].map(g=>`<option>${g}</option>`).join('')}</select></td>
       <td><input type="number" value="${new Date().getFullYear()}" style="width:72px"></td>
       <td><input type="text" placeholder="Subjects" style="min-width:140px"></td>
-      <td><select><option value="">—</option>${mentorOpts}</select></td>
+      <td><select ${S.currentUser.role!=='admin'?'disabled style="background:var(--green-light);font-weight:700"':''} class="mentor-col-select"><option value="">—</option>${mentorOpts}</select></td>
       <td><select style="font-weight:700;color:var(--green-dark)"><option value="Import">Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option></select></td>
       <td><input type="date"></td>
       <td><input type="text" placeholder="Notes" style="min-width:100px"></td>
@@ -8569,20 +8607,23 @@ function importPage() {
     </tr>`;
   }
 
+  const isMentor = S.currentUser.role !== 'admin';
+
   return `
   <div class="page-header gold">
-    <h1>📥 Import &amp; Manage People</h1>
-    <p>Bulk import mentees and mentors · Promote roles · Reassign · Offboard · Full audit trail</p>
+    <h1>${isMentor ? '📥 Import My Mentees' : '📥 Import &amp; Manage People'}</h1>
+    <p>${isMentor ? 'Upload your mentee list via Excel template — assigned to you automatically' : 'Bulk import mentees and mentors · Promote roles · Reassign · Offboard · Full audit trail'}</p>
   </div>
 
   <div class="tabs">
     <button class="tab active" onclick="switchImportTab('ti-mentees',this)">👥 Import Mentees</button>
-    <button class="tab" onclick="switchImportTab('ti-mentors',this)">🌱 Import Mentors</button>
-    <button class="tab" onclick="switchImportTab('ti-manage',this)">🔄 Reassign / Promote / Offboard</button>
-    <button class="tab" onclick="switchImportTab('ti-audit',this)">📋 Audit Trail</button>
-  </div>
+    ${!isMentor ? '<button class="tab" onclick="switchImportTab(\'ti-mentors\',this)">&#127807; Import Mentors</button>' : ''}
+    ${!isMentor ? '<button class="tab" onclick="switchImportTab(\'ti-manage\',this)">&#128260; Reassign / Promote / Offboard</button>' : ''}
+    ${!isMentor ? '<button class="tab" onclick="switchImportTab(\'ti-audit\',this)">&#128203; Audit Trail</button>' : ''}
+  </div>`
 
-  <!-- ── MENTEES TAB ── -->
+  + `
+    <!-- ── MENTEES TAB ── -->
   <div id="ti-mentees">
     <div class="card">
       <div class="card-hdr">
@@ -8617,7 +8658,7 @@ function importPage() {
         </table>
       </div>
       <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('mi-tbody').insertAdjacentHTML('beforeend','${mRow().replace(/`/g,"'")}')">➕ Add Row</button>
+        <button class="btn btn-ghost btn-sm" onclick="addMenteeRow()">➕ Add Row</button>
         <button class="btn btn-primary" onclick="processMenteeImport()">✅ Process Import</button>
       </div>
       <div id="mi-result" style="margin-top:1rem"></div>
@@ -9077,6 +9118,70 @@ function dlMentorTemplate() {
 // Works with both the Mentee Import and Mentor Import sheets
 // ═══════════════════════════════════════════════════════════════
 
+function addMenteeRow() {
+  const tbody = document.getElementById('mi-tbody');
+  if (!tbody) return;
+  const div = document.createElement('div');
+  div.innerHTML = mRow ? mRow() : '';
+  const tr = div.querySelector('tr') || (function(){
+    // mRow is defined inside importPage scope — re-generate a row
+    const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
+    const provOpts  = provinces.map(p => '<option value="'+p+'">'+p+'</option>').join('');
+    const mentorOpts= S.users.filter(function(u){return !u.offboarded;}).map(function(u){return '<option value="'+u.name+'">'+u.name+'</option>';}).join('');
+    const gradeOpts = ['8','9','10','11','12','Post Matric'].map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+    const tr2 = document.createElement('tr');
+    tr2.innerHTML = '<td><input type="text" placeholder="Full name" style="min-width:130px"></td>'
+      +'<td><input type="date"></td>'
+      +'<td><select><option value="">—</option>'+provOpts+'</select></td>'
+      +'<td><input type="text" placeholder="School" style="min-width:120px"></td>'
+      +'<td><select><option value="">—</option>'+gradeOpts+'</select></td>'
+      +'<td><input type="number" value="'+new Date().getFullYear()+'" style="width:72px"></td>'
+      +'<td><input type="text" placeholder="English FAL, Mathematics, ..." style="min-width:140px"></td>'
+      +'<td><select class="mentor-col-select"><option value="">—</option>'+mentorOpts+'</select></td>'
+      +'<td><select style="font-weight:700;color:var(--green-dark)"><option value="Import">Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option></select></td>'
+      +'<td><input type="date"></td>'
+      +'<td><input type="text" placeholder="Notes" style="min-width:100px"></td>'
+      +'<td><button class="del-mi-row" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px">&#10005;</button></td>';
+    return tr2;
+  })();
+  // Auto-assign mentor
+  const mentorSel = tr.querySelector('.mentor-col-select') || tr.querySelectorAll('select')[2];
+  if (mentorSel) {
+    mentorSel.value = S.currentUser.name;
+    if (S.currentUser.role !== 'admin') {
+      mentorSel.disabled = true;
+      mentorSel.style.background = 'var(--green-light)';
+      mentorSel.style.fontWeight = '700';
+    }
+  }
+  // Delete button via event listener to avoid quote issues
+  var delBtn = tr.querySelector ? tr.querySelector('.del-mi-row') : null;
+  if (delBtn) delBtn.addEventListener('click', function(){ tr.parentNode && tr.parentNode.removeChild(tr); });
+  tbody.appendChild(tr);
+}
+
+function autoSetMentorColumn() {
+  // After Excel upload, auto-set mentor column to logged-in mentor for non-admins
+  if (S.currentUser.role === 'admin') return;
+  document.querySelectorAll('#mi-tbody tr').forEach(function(tr) {
+    var sels = tr.querySelectorAll('select');
+    // Mentor column is index 1 (after province at index 0... actually it's the one with mentor options)
+    var mentorSel = tr.querySelector('.mentor-col-select');
+    if (!mentorSel) {
+      // fallback: find by options matching mentor names
+      Array.from(sels).forEach(function(sel) {
+        Array.from(sel.options).forEach(function(opt) {
+          if (opt.value === S.currentUser.name) {
+            sel.value = S.currentUser.name;
+          }
+        });
+      });
+    } else {
+      mentorSel.value = S.currentUser.name;
+    }
+  });
+}
+
 function handleExcelUpload(inputEl, type) {
   const file = inputEl.files[0];
   if (!file) return;
@@ -9196,7 +9301,15 @@ function handleExcelUpload(inputEl, type) {
           const selMentor= tr.querySelectorAll('select')[2];
           if (selProv)   selProv.value   = province;
           if (selGrade)  selGrade.value  = grade;
-          if (selMentor) selMentor.value = mentor;
+          // Auto-assign to logged-in mentor if not admin
+          if (selMentor) {
+            selMentor.value = (S.currentUser.role !== 'admin') ? S.currentUser.name : mentor;
+            if (S.currentUser.role !== 'admin') {
+              selMentor.disabled = true;
+              selMentor.style.background = 'var(--green-light)';
+              selMentor.style.fontWeight = '700';
+            }
+          }
 
           tbody.appendChild(tr);
           loaded++;
