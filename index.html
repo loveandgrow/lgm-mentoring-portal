@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="app-version" content="202608221607">
+<meta name="app-version" content="202608221613">
 <title>Love and Grow Mentorship — Mentoring Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>:root{--green:#2eaa6e;--green-dark:#1a7a4c;--green-deeper:#0f5233;--green-light:#eaf7f1;--green-mid:#b2dfc8;--gold:#f5a623;--gold-dark:#c47d10;--gold-light:#fef6e8;--gold-mid:#fad498;--cream:#fdfaf4;--warm:#fff9f0;--dark:#142018;--mid:#3a5444;--light:#6a8a76;--border:#d8ead0;--soft:#eaf3e6;--shadow:0 3px 14px rgba(20,50,30,.10);--shadow-lg:0 8px 32px rgba(20,50,30,.16);--r:14px;--r-sm:9px;--r-xs:6px;--font:'Nunito',sans-serif}
@@ -8806,11 +8806,14 @@ function importPage() {
       </p>
       <div style="overflow-x:auto">
         <table style="min-width:1000px;font-size:13px">
-          <thead><tr>
-            <th>Full Name ★</th><th>Date of Birth</th><th>Province</th>
-            <th>School ★</th><th>Grade ★</th><th>Year ★</th>
-            <th>Subjects</th><th>Assigned Mentor</th>
-            <th>Action ★</th><th>Offboard Date</th><th>Notes</th><th></th>
+          <thead><tr style="font-size:12px">
+            <th>Mentor ★</th><th>First Name ★</th><th>Surname ★</th>
+            <th>Gender</th><th>Race</th><th>Contact</th><th>Wifi</th>
+            <th>Birthday</th><th>Email</th><th>Province</th>
+            <th>School ★</th><th>Grade ★</th>
+            <th>Career</th><th>Status</th><th>Year ★</th>
+            <th>Sec.Email</th><th>Subjects ★</th>
+            <th>Action ★</th><th></th>
           </tr></thead>
           <tbody id="mi-tbody">${mRow()}${mRow()}${mRow()}</tbody>
         </table>
@@ -10119,7 +10122,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608221607';
+  var _appVersion = '202608221613';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
