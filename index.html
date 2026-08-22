@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="app-version" content="202608221650">
+<meta name="app-version" content="202608221700">
 <title>Love and Grow Mentorship — Mentoring Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>:root{--green:#2eaa6e;--green-dark:#1a7a4c;--green-deeper:#0f5233;--green-light:#eaf7f1;--green-mid:#b2dfc8;--gold:#f5a623;--gold-dark:#c47d10;--gold-light:#fef6e8;--gold-mid:#fad498;--cream:#fdfaf4;--warm:#fff9f0;--dark:#142018;--mid:#3a5444;--light:#6a8a76;--border:#d8ead0;--soft:#eaf3e6;--shadow:0 3px 14px rgba(20,50,30,.10);--shadow-lg:0 8px 32px rgba(20,50,30,.16);--r:14px;--r-sm:9px;--r-xs:6px;--font:'Nunito',sans-serif}
@@ -9510,35 +9510,43 @@ function handleExcelUpload(inputEl, type) {
             +'</select></td>'
             +'<td><button class="del-mi-row2" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px">&#10005;</button></td>';
 
-          // Set dropdowns — append to DOM first, then set values
+          // Rebuild mentor options fresh from S.users
+          var freshMentorOpts = '<option value="">—</option>';
+          var _cu = currentUser();
+          var _pool = (_cu && _cu.group === 'lead')
+            ? S.users.filter(function(u){ return !u.offboarded && (u.id===_cu.id||u.leadMentor===_cu.name); })
+            : S.users.filter(function(u){ return !u.offboarded; });
+          _pool.forEach(function(u){ freshMentorOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
+
+          // Inject fresh options into mentor select BEFORE appending to DOM
+          var mentorSel2 = tr.querySelector('.mentor-col-select');
+          if (mentorSel2) mentorSel2.innerHTML = freshMentorOpts;
+
+          // Append to DOM first so all selects are live
           tbody.appendChild(tr);
 
           var sels = tr.querySelectorAll('select');
-          var cu = currentUser();
 
-          // Helper: set select value with text fallback
+          // Helper: set select by value or text match
           function setSelect(sel, val) {
-            if (!sel || !val) return;
-            sel.value = val;
+            if (!sel || val === undefined || val === null || val === '') return;
+            var v = String(val).trim();
+            sel.value = v;
             if (!sel.value) {
-              // Try matching by option text
-              var v = String(val).toLowerCase().trim();
-              Array.from(sel.options).forEach(function(opt) {
-                if (opt.text.toLowerCase().trim() === v || opt.value.toLowerCase().trim() === v) {
-                  sel.value = opt.value;
-                }
+              var vl = v.toLowerCase();
+              Array.from(sel.options).forEach(function(o){
+                if (o.value.toLowerCase()===vl || o.text.toLowerCase()===vl) sel.value = o.value;
               });
             }
           }
-          // [0] Mentor
-          if (sels[0]) {
-            var mentorVal = (cu && cu.role !== 'admin') ? cu.name : (mentor || '');
-            setSelect(sels[0], mentorVal);
-            if (cu && cu.role !== 'admin') {
-              sels[0].disabled = true;
-              sels[0].style.background = 'var(--green-light)';
-              sels[0].style.fontWeight = '700';
-            }
+
+          // [0] Mentor dropdown
+          var mentorVal = (_cu && _cu.role !== 'admin') ? _cu.name : (mentor || '');
+          setSelect(sels[0], mentorVal);
+          if (_cu && _cu.role !== 'admin' && sels[0]) {
+            sels[0].disabled = true;
+            sels[0].style.background = 'var(--green-light)';
+            sels[0].style.fontWeight = '700';
           }
           // [1] Gender
           setSelect(sels[1], gender);
@@ -10136,7 +10144,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608221650';
+  var _appVersion = '202608221700';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
