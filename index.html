@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="app-version" content="202608221720">
+<meta name="app-version" content="202608221750">
 <title>Love and Grow Mentorship — Mentoring Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>:root{--green:#2eaa6e;--green-dark:#1a7a4c;--green-deeper:#0f5233;--green-light:#eaf7f1;--green-mid:#b2dfc8;--gold:#f5a623;--gold-dark:#c47d10;--gold-light:#fef6e8;--gold-mid:#fad498;--cream:#fdfaf4;--warm:#fff9f0;--dark:#142018;--mid:#3a5444;--light:#6a8a76;--border:#d8ead0;--soft:#eaf3e6;--shadow:0 3px 14px rgba(20,50,30,.10);--shadow-lg:0 8px 32px rgba(20,50,30,.16);--r:14px;--r-sm:9px;--r-xs:6px;--font:'Nunito',sans-serif}
@@ -8731,10 +8731,10 @@ function importPage() {
   const offboardList=`<optgroup label="Mentees">${S.mentees.filter(m=>!m.offboarded).map(m=>`<option value="mentee:${m.id}">👤 ${m.name} (${m.grade})</option>`).join('')}</optgroup><optgroup label="Mentors">${S.users.filter(u=>!u.offboarded&&u.id!==S.currentUser.id).map(u=>`<option value="mentor:${u.id}">🌱 ${u.name}</option>`).join('')}</optgroup>`;
 
   function mRow() {
-    const isMentor = S.currentUser.role !== 'admin';
-    const mAttr = isMentor ? 'disabled style="background:var(--green-light);font-weight:700"' : '';
-    const mVal  = isMentor ? S.currentUser.name : '';
-    const mOpt  = mentorOpts.includes('value="'+mVal+'"') ? mentorOpts : mentorOpts;
+    var isMentor = S.currentUser.role !== 'admin';
+    var mAttr = isMentor ? 'disabled style="background:var(--green-light);font-weight:700"' : '';
+    var grades = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'];
+    var gradeOpts2 = grades.map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
     return '<tr>'
       +'<td><select '+mAttr+' class="mentor-col-select"><option value="">—</option>'+mentorOpts+'</select></td>'
       +'<td><input type="text" placeholder="First name" style="min-width:100px"></td>'
@@ -8747,7 +8747,7 @@ function importPage() {
       +'<td><input type="text" placeholder="Email" style="min-width:120px"></td>'
       +'<td><select><option value="">—</option>'+provOpts+'</select></td>'
       +'<td><input type="text" placeholder="School" style="min-width:120px"></td>'
-      +'<td><select><option value="">—</option><option>9</option><option>10</option><option>11</option><option>12</option><option>Tertiary</option><option>Post Matric</option><option>Post Matric - Mentorship Program</option><option>High School - Mentorship Program</option></select></td>'
+      +'<td><select><option value="">—</option>'+gradeOpts2+'</select></td>'
       +'<td><input type="text" placeholder="Career" style="min-width:100px"></td>'
       +'<td><input type="text" placeholder="Enrolment status" style="min-width:120px"></td>'
       +'<td><input type="number" value="'+new Date().getFullYear()+'" style="width:72px"></td>'
@@ -8757,7 +8757,6 @@ function importPage() {
       +'<td><button class="del-mrow" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px">&#10005;</button></td>'
       +'</tr>';
   }
-
   function mrRow() {
     return `<tr>
       <td><input type="text" placeholder="Full name" style="min-width:130px"></td>
@@ -8948,11 +8947,10 @@ function importPage() {
   </div>`;
 }
 
-// Delete row delegation for import table
 document.addEventListener('click', function(e) {
   if (e.target && e.target.classList.contains('del-mrow')) {
     var tr = e.target.closest('tr');
-    if (tr) tr.parentNode.removeChild(tr);
+    if (tr && tr.parentNode) tr.parentNode.removeChild(tr);
   }
 });
 
@@ -9529,19 +9527,16 @@ function handleExcelUpload(inputEl, type) {
             +'</select></td>'
             +'<td><button class="del-mi-row2" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px">&#10005;</button></td>';
 
-          // Rebuild mentor options fresh from S.users
-          var freshMentorOpts = '<option value="">—</option>';
+          // Inject fresh mentor options before appending
           var _cu = currentUser();
           var _pool = (_cu && _cu.group === 'lead')
             ? S.users.filter(function(u){ return !u.offboarded && (u.id===_cu.id||u.leadMentor===_cu.name); })
             : S.users.filter(function(u){ return !u.offboarded; });
+          var freshMentorOpts = '<option value="">—</option>';
           _pool.forEach(function(u){ freshMentorOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
-
-          // Inject fresh options into mentor select BEFORE appending to DOM
           var mentorSel2 = tr.querySelector('.mentor-col-select');
           if (mentorSel2) mentorSel2.innerHTML = freshMentorOpts;
 
-          // Append to DOM first so all selects are live
           tbody.appendChild(tr);
 
           var sels = tr.querySelectorAll('select');
@@ -10163,7 +10158,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608221720';
+  var _appVersion = '202608221750';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
