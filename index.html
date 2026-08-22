@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="app-version" content="202608221613">
+<meta name="app-version" content="202608221620">
 <title>Love and Grow Mentorship — Mentoring Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>:root{--green:#2eaa6e;--green-dark:#1a7a4c;--green-deeper:#0f5233;--green-light:#eaf7f1;--green-mid:#b2dfc8;--gold:#f5a623;--gold-dark:#c47d10;--gold-light:#fef6e8;--gold-mid:#fad498;--cream:#fdfaf4;--warm:#fff9f0;--dark:#142018;--mid:#3a5444;--light:#6a8a76;--border:#d8ead0;--soft:#eaf3e6;--shadow:0 3px 14px rgba(20,50,30,.10);--shadow-lg:0 8px 32px rgba(20,50,30,.16);--r:14px;--r-sm:9px;--r-xs:6px;--font:'Nunito',sans-serif}
@@ -9536,28 +9536,29 @@ function handleExcelUpload(inputEl, type) {
           // [5] Action (last select)
           if (sels[5]) sels[5].value = action || 'Import';
 
-          // Set text inputs by placeholder
-          tr.querySelectorAll('input[type=text], input[type=number]').forEach(function(inp) {
-            var ph = inp.placeholder || '';
-            if (ph === 'First name')    inp.value = firstName || name || '';
-            if (ph === 'Surname')       inp.value = surname || '';
-            if (ph === 'Race')          inp.value = race || '';
-            if (ph === 'Contact')       inp.value = contact || '';
-            if (ph === 'Email')         inp.value = email || '';
-            if (ph === 'School')        inp.value = school || '';
-            if (ph === 'Career')        inp.value = career || '';
-            if (ph === 'Enrolment status') inp.value = status || '';
-            if (ph === 'Sec. email')    inp.value = sec_email || '';
-            if (inp.type === 'number')  inp.value = year || new Date().getFullYear();
-          });
-          // Birthday
-          var dateInp = tr.querySelector('input[type=date]');
-          if (dateInp) dateInp.value = typeof dob === 'object' && dob ? dob.toISOString().split('T')[0] : (dob||'');
-          // Subjects
-          var subjectInps = tr.querySelectorAll('input[type=text]');
-          subjectInps.forEach(function(inp) {
-            if (inp.placeholder && inp.placeholder.indexOf('English FAL') !== -1) inp.value = subjects || '';
-          });
+          // Set all text/number inputs by position in the row
+          // Row structure: mentor(sel) | firstName(txt) | surname(txt) | gender(sel) | race(txt) | 
+          //   contact(txt) | wifi(sel) | birthday(date) | email(txt) | province(sel) | school(txt) |
+          //   grade(sel) | career(txt) | status(txt) | year(num) | sec_email(txt) | subjects(txt) | action(sel)
+          var allInputs = tr.querySelectorAll('input');
+          // Text inputs in order: firstName, surname, race, contact, email, school, career, status, sec_email, subjects
+          var textInputs = Array.from(tr.querySelectorAll('input[type=text]'));
+          var numInputs  = Array.from(tr.querySelectorAll('input[type=number]'));
+          var dateInputs = Array.from(tr.querySelectorAll('input[type=date]'));
+
+          if (textInputs[0]) textInputs[0].value = firstName || '';  // First Name
+          if (textInputs[1]) textInputs[1].value = surname   || '';  // Surname
+          if (textInputs[2]) textInputs[2].value = race      || '';  // Race
+          if (textInputs[3]) textInputs[3].value = contact   || '';  // Contact
+          if (textInputs[4]) textInputs[4].value = email     || '';  // Email
+          if (textInputs[5]) textInputs[5].value = school    || '';  // School
+          if (textInputs[6]) textInputs[6].value = career    || '';  // Career
+          if (textInputs[7]) textInputs[7].value = status    || '';  // Status
+          if (textInputs[8]) textInputs[8].value = sec_email || '';  // Sec Email
+          if (textInputs[9]) textInputs[9].value = subjects  || '';  // Subjects
+          if (numInputs[0])  numInputs[0].value  = year      || new Date().getFullYear(); // Year
+          if (dateInputs[0]) dateInputs[0].value = typeof dob === 'object' && dob
+            ? dob.toISOString().split('T')[0] : (dob || '');        // Birthday
           var delBtn2 = tr.querySelector('.del-mi-row2');
           if (delBtn2) delBtn2.addEventListener('click', function(){ tr.parentNode&&tr.parentNode.removeChild(tr); });
 
@@ -10122,7 +10123,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608221613';
+  var _appVersion = '202608221620';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
