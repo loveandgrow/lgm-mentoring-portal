@@ -9689,23 +9689,27 @@ function handleExcelUpload(inputEl, type) {
           // This avoids any querySelector timing issues
           function findEl(col) { return tr.querySelector('[data-col="'+col+'"]'); }
 
-          // Generic fuzzy-set for selects
+          // Set a select — always scan options directly, never trust el.value= alone
           function fillSelect(el, v) {
-            if (!el || v === null || v === undefined || v === '') return;
+            if (!el || v === null || v === undefined) return;
             var vs = String(v).trim();
             if (!vs) return;
-            var vl = vs.toLowerCase();
-            el.value = vs;
-            if (el.value === vs) return;
-            // scan options for best match
+            var vl = vs.toLowerCase().replace(/[^a-z0-9]/g, '');
             var best = null, bestScore = 0;
             Array.from(el.options).forEach(function(o) {
-              var ov = o.value.toLowerCase(), ot = o.text.toLowerCase();
-              if (ov === vl || ot === vl) { best = o.value; bestScore = 3; }
-              else if (bestScore < 2 && (ov.replace(/[^a-z0-9]/g,'') === vl.replace(/[^a-z0-9]/g,''))) { best = o.value; bestScore = 2; }
-              else if (bestScore < 1 && (ov.startsWith(vl) || ot.startsWith(vl) || vl.startsWith(ov.substring(0,4)) || vl.startsWith(ot.substring(0,4)))) { best = o.value; bestScore = 1; }
+              var ov = o.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+              var ot = o.text.toLowerCase().replace(/[^a-z0-9]/g, '');
+              var score = 0;
+              if (ov === vl || ot === vl) score = 3;                          // exact (normalised)
+              else if (ov.startsWith(vl) || ot.startsWith(vl)) score = 2;    // starts-with
+              else if (vl.startsWith(ov) || vl.startsWith(ot)) score = 1;    // reverse starts-with
+              if (score > bestScore) { best = o.value; bestScore = score; }
             });
-            if (best !== null) el.value = best;
+            if (best !== null) {
+              el.value = best;
+              // Force-select in case browser ignores .value= on detached elements
+              Array.from(el.options).forEach(function(o){ o.selected = (o.value === best); });
+            }
           }
 
           // Mentor: match full name or first name
