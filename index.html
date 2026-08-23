@@ -9134,7 +9134,18 @@ function processMenteeImport() {
       errs.push(`Row ${i+1}: "${name}" not found — use Import to add new`);
     }
   });
+  backfillMentorIds();
   persistState();
+
+  // Confirm save — read back from localStorage to verify
+  try {
+    var saved = JSON.parse(localStorage.getItem('lgm_2026_state') || '{}');
+    var savedCount = (saved.mentees || []).length;
+    console.log('✅ Saved to localStorage — mentee count:', savedCount);
+    if (imp > 0 && savedCount === 0) {
+      toast('⚠️ Import processed but localStorage save may have failed — check console');
+    }
+  } catch(e) { console.warn('Save verify error:', e); }
 
   // Sync ONLY the rows touched in this import batch — prevents duplicate conflict tabs
   if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
