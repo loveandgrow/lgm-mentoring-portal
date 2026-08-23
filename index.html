@@ -9247,17 +9247,26 @@ function dlMenteeTemplate() {
   const instH = ['Column','Required?','Description','Example'];
   const instRows = [
     instH,
-    ['Mentee Full Name',   'YES', 'Full name of the mentee',                          'Amahle Zulu'],
-    ['Date of Birth',      'No',  'Format: YYYY-MM-DD',                               '2009-03-15'],
-    ['Province',           'No',  'One of the 9 SA provinces',                        'Gauteng'],
-    ['School',             'No',  'Full school name',                                  'Madimba High School'],
-    ['Grade',              'YES', 'Grade number only — 8, 9, 10, 11, 12, Post Matric','12'],
-    ['Enrollment Year',    'No',  'Year of programme enrolment',                       '2026'],
-    ['Subjects',           'YES', 'Comma-separated list of subjects for academic progress tracking. These will auto-load in the Academic Progress tab when the mentee is selected.', 'English FAL, Mathematics, Life Sciences, History, Geography, Life Orientation'],
-    ['Assigned Mentor',    'YES', 'Must match a mentor name exactly as added in the portal', 'Livhuwani'],
-    ['Action',             'YES', 'Import = new mentee | Update = edit existing | Offboard = deactivate', 'Import'],
-    ['Offboard Date',      'No',  'Only needed if Action = Offboard. Format: YYYY-MM-DD', '2026-12-31'],
-    ['Notes',              'No',  'Any additional notes or comments',                  'Transferred from another school'],
+    ['Assigned Mentor',                    'YES', 'The mentor directly working with this mentee — must match exactly as added in the portal', 'Renola'],
+    ['Mentee Name',                        'YES', 'First name of the mentee',                          'Amahle'],
+    ['Mentee Surname',                     'YES', 'Surname / last name of the mentee',                 'Zulu'],
+    ['Gender',                             'No',  'Male / Female / Other',                             'Female'],
+    ['Race',                               'No',  'As defined by the programme',                       'African'],
+    ['Contact No.',                        'No',  'Mentee phone number',                               '0821234567'],
+    ['Wi-fi (Y/N)',                        'No',  'Does the mentee have Wi-Fi at home? Y or N',        'Y'],
+    ['Birthday',                           'No',  'Format: YYYY-MM-DD',                                '2009-03-15'],
+    ['Mentee Email Address',               'No',  'Mentee\'s own email address',                       'amahle@example.com'],
+    ['Province - Municipality',            'No',  'One of the 9 SA provinces',                         'Gauteng'],
+    ['School / Tertiary Institution',      'No',  'Full school or university name',                    'Madimba High School'],
+    ['Grade',                              'YES', 'Grade number: 9, 10, 11, 12, Post Matric, Tertiary','12'],
+    ['Career Choices',                     'No',  'What career does the mentee aspire to?',             'Law, Medicine'],
+    ['LGM Program Enrolment Status',       'No',  'e.g. High School - Mentorship Program',             'High School - Mentorship Program'],
+    ['LGM Program Enrolment Year',         'No',  'Year the mentee joined the programme',               '2026'],
+    ['Email Address Secondary Contact',    'No',  'Parent / guardian email',                            'parent@example.com'],
+    ['Subjects',                           'YES', 'Comma-separated subjects — auto-loads in Academic Progress tab when capturing sessions', 'English FAL, Mathematics, Life Sciences'],
+    ['Action (Import/Update/Offboard)',    'YES', 'Import = add new | Update = edit existing | Offboard = deactivate', 'Import'],
+    ['Offboard Date',                      'No',  'Only needed if Action = Offboard. Format: YYYY-MM-DD', '2026-12-31'],
+    ['Notes',                              'No',  'Any additional notes or comments',                   'Transferred from another school'],
     ['','','',''],
     ['IMPORTANT — SUBJECTS COLUMN','','',''],
     ['','','List each subject separated by a comma. These load automatically into the Academic Progress tab when capturing sessions.',''],
@@ -9270,33 +9279,53 @@ function dlMenteeTemplate() {
   wsInst['!cols'] = [{wch:22},{wch:12},{wch:65},{wch:55}];
   XLSX.utils.book_append_sheet(wb, wsInst, 'Instructions');
 
-  // ── Import sheet ─────────────────────────────────────────────
-  const h = ['Mentee Full Name','Date of Birth','Province','School','Grade','Enrollment Year','Subjects','Assigned Mentor','Action (Import/Update/Offboard)','Offboard Date','Notes'];
+  // ── Import sheet — columns MUST match what handleExcelUpload reads ──
+  // Column order matches the portal grid:
+  // [0]Assigned Mentor [1]Mentee Name [2]Mentee Surname [3]Gender [4]Race [5]Contact No.
+  // [6]Wi-fi (Y/N) [7]Birthday [8]Mentee Email Address [9]Province - Municipality
+  // [10]School / Tertiary Institution [11]Grade [12]Career Choices
+  // [13]LGM Program Enrolment Status [14]LGM Program Enrolment Year
+  // [15]Email Address Secondary Contact [16]Subjects
+  // [17]Action (Import/Update/Offboard) [18]Offboard Date [19]Notes
+  const h = [
+    'Assigned Mentor','Mentee Name','Mentee Surname','Gender','Race','Contact No.',
+    'Wi-fi (Y/N)','Birthday','Mentee Email Address','Province - Municipality',
+    'School / Tertiary Institution','Grade','Career Choices',
+    'LGM Program Enrolment Status','LGM Program Enrolment Year',
+    'Email Address Secondary Contact','Subjects',
+    'Action (Import/Update/Offboard)','Offboard Date','Notes'
+  ];
   const examples = [
-    ['Amahle Zulu',    '2009-03-15','Gauteng',    'Madimba High School','12','2026',
+    ['Livhuwani','Amahle','Zulu','Female','African','0821234567','Y','2009-03-15',
+     'amahle@example.com','Gauteng','Madimba High School','12','Law',
+     'High School - Mentorship Program','2026','parent@example.com',
      'English FAL, Mathematics, Life Sciences, History, Geography, Life Orientation',
-     'Livhuwani','Import','',''],
-    ['Tebogo Sithole', '2010-07-22','Gauteng',    'Randburg Secondary',  '10','2026',
+     'Import','',''],
+    ['Livhuwani','Tebogo','Sithole','Male','African','0837654321','N','2010-07-22',
+     'tebogo@example.com','Gauteng','Randburg Secondary','10','Engineering',
+     'High School - Mentorship Program','2026','',
      'Mathematics, English FAL, Physical Science, Life Sciences, History, Life Orientation',
-     'Livhuwani','Import','',''],
-    ['Precious Nkosi', '2011-01-08','Limpopo',    'Thohoyandou High',    '9', '2026',
+     'Import','',''],
+    ['Nash','Precious','Nkosi','Female','African','0849876543','Y','2011-01-08',
+     'precious@example.com','Limpopo','Thohoyandou High','9','Medicine',
+     'High School - Mentorship Program','2026','',
      'Mathematics, English FAL, Natural Science, Life Orientation, Tshivenda, Social Science, Technology',
-     'Nash','Import','',''],
-    ['','','','','','','','','Import','',''],
-    ['','','','','','','','','Import','',''],
-    ['','','','','','','','','Import','',''],
-    ['','','','','','','','','Import','',''],
-    ['','','','','','','','','Import','',''],
+     'Import','',''],
+    ['','','','','','','','','','','','','','','','','','Import','',''],
+    ['','','','','','','','','','','','','','','','','','Import','',''],
+    ['','','','','','','','','','','','','','','','','','Import','',''],
+    ['','','','','','','','','','','','','','','','','','Import','',''],
+    ['','','','','','','','','','','','','','','','','','Import','',''],
   ];
   const ws = XLSX.utils.aoa_to_sheet([h, ...examples]);
   ws['!cols'] = [
-    {wch:22},{wch:14},{wch:16},{wch:24},{wch:8},{wch:10},
-    {wch:55}, // Subjects column wider
-    {wch:20},{wch:22},{wch:14},{wch:30}
+    {wch:20},{wch:16},{wch:16},{wch:10},{wch:10},{wch:14},
+    {wch:10},{wch:12},{wch:24},{wch:20},
+    {wch:26},{wch:8},{wch:18},
+    {wch:32},{wch:10},
+    {wch:26},{wch:55},
+    {wch:26},{wch:14},{wch:30}
   ];
-  // Bold the Subjects header cell
-  if (!ws['G1'].s) ws['G1'].s = {};
-  ws['G1'].s = { font:{ bold:true }, fill:{ fgColor:{ rgb:'EAF7F1' } } };
   XLSX.utils.book_append_sheet(wb, ws, 'Mentee Import');
 
   XLSX.writeFile(wb, 'LGM_Mentee_Import_Template.xlsx');
@@ -9482,6 +9511,10 @@ function handleExcelUpload(inputEl, type) {
   const mentorOpts = _mentorPool.map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
         const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(g=>`<option value="${g}">${g}</option>`).join('');
 
+        const gradeOpts2 = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+        const isMentorUser = _cu && _cu.role !== 'admin';
+        const mAttr = isMentorUser ? 'disabled style="background:var(--green-light);font-weight:700"' : '';
+
         dataRows.forEach(row => {
           // Read all fields by column name (robust — order doesn't matter)
           const firstName   = val(row, ['mentee name','first name']);
@@ -9509,16 +9542,35 @@ function handleExcelUpload(inputEl, type) {
 
           if (!name) return;
 
-          // Build row using mRow() template — pass options explicitly
+          // Build row inline (mRow is scoped inside importPage, so we build directly here)
           var _mOpts = '<option value="">—</option>';
-          _pool.forEach(function(u){ _mOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
-          var _pOpts = provOpts;
+          _mentorPool.forEach(function(u){ _mOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
           var tempDiv = document.createElement('div');
-          tempDiv.innerHTML = mRow(_mOpts, _pOpts);
+          tempDiv.innerHTML = '<tr>'
+            +'<td><select '+mAttr+' class="mentor-col-select"><option value="">—</option>'+_mOpts+'</select></td>'
+            +'<td><input type="text" placeholder="First name" style="min-width:90px"></td>'
+            +'<td><input type="text" placeholder="Surname" style="min-width:90px"></td>'
+            +'<td><select><option value="">—</option><option>Male</option><option>Female</option><option>Other</option></select></td>'
+            +'<td><input type="text" placeholder="Race" style="width:70px"></td>'
+            +'<td><input type="text" placeholder="Contact" style="width:100px"></td>'
+            +'<td><select><option value="">—</option><option value="Y">Y</option><option value="N">N</option></select></td>'
+            +'<td><input type="date"></td>'
+            +'<td><input type="text" placeholder="Email" style="min-width:110px"></td>'
+            +'<td><select><option value="">—</option>'+provOpts+'</select></td>'
+            +'<td><input type="text" placeholder="School" style="min-width:110px"></td>'
+            +'<td><select><option value="">—</option>'+gradeOpts2+'</select></td>'
+            +'<td><input type="text" placeholder="Career" style="min-width:90px"></td>'
+            +'<td><input type="text" placeholder="Status" style="min-width:100px"></td>'
+            +'<td><input type="number" value="'+new Date().getFullYear()+'" style="width:65px"></td>'
+            +'<td><input type="text" placeholder="Sec.email" style="min-width:100px"></td>'
+            +'<td><input type="text" placeholder="Subjects" style="min-width:140px"></td>'
+            +'<td><select style="font-weight:700;color:var(--green-dark)"><option value="Import">Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option></select></td>'
+            +'<td><input type="date"></td>'
+            +'<td><input type="text" placeholder="Notes" style="min-width:80px"></td>'
+            +'<td><button class="del-mrow" style="background:none;border:none;cursor:pointer;color:#ef4444">&#10005;</button></td>'
+            +'</tr>';
           var tr = tempDiv.querySelector('tr');
           if (!tr) return;
-
-          // Mentor options already injected via mRow() params
 
           // Append to DOM first so selects are live
           tbody.appendChild(tr);
