@@ -6814,6 +6814,20 @@ function loadLocalState() {
   persistState();
 }
 
+function backfillMentorIds() {
+  // Fix mentees imported with first-name only mentor — resolve to full user
+  S.mentees.forEach(function(m) {
+    if (m.mentorId) return; // already has ID
+    if (!m.mentorName) return;
+    var mn = m.mentorName.trim().toLowerCase();
+    var u = S.users.find(function(u) {
+      var ul = u.name.toLowerCase();
+      return ul === mn || ul.split(' ')[0] === mn || mn === ul.split(' ')[0];
+    });
+    if (u) { m.mentorId = u.id; m.mentorName = u.name; }
+  });
+}
+
 function persistState() {
   try { localStorage.setItem('lgm_2026_state', JSON.stringify({ users: S.users, mentees: S.mentees, sessions: S.sessions, auditLog: S.auditLog||[] })); } catch(e) {}
 }
@@ -7071,7 +7085,7 @@ function silentSyncOnLogin() {
           }
         });
       }
-      if (changed) { persistState(); navigate('dashboard'); }
+      if (changed) { backfillMentorIds(); persistState(); navigate('dashboard'); }
     })
     .catch(function() {});
 }
@@ -7250,7 +7264,7 @@ function adminDashboard() {
 
   const mentorStats = allMentors.map(u=>({
     name:u.name,
-    mentees:  S.mentees.filter(m=>m.mentorId===u.id).length,
+    mentees:  S.mentees.filter(m=>m.mentorId===u.id || (!m.mentorId && m.mentorName && (m.mentorName===u.name||m.mentorName.split(' ')[0]===u.name.split(' ')[0]))).length,
     sessions: S.sessions.filter(s=>s.mentorId===u.id).length,
     thisMonth:S.sessions.filter(s=>s.mentorId===u.id&&s.month===thisMonth).length,
   }));
@@ -7285,13 +7299,8 @@ function adminDashboard() {
       <div class="card-title" style="margin-bottom:1rem">👤 Mentor Activity — ${thisMonth}</div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr style="font-size:11px">
-            <th>Mentor ★</th><th>First Name ★</th><th>Surname ★</th>
-            <th>Gender</th><th>Race</th><th>Contact</th><th>Wifi</th>
-            <th>Birthday</th><th>Email</th><th>Province</th>
-            <th>School ★</th><th>Grade ★</th><th>Career</th><th>Status</th>
-            <th>Year ★</th><th>Sec.Email</th><th>Subjects ★</th>
-            <th>Action ★</th><th>Offboard Date</th><th>Notes</th><th></th>
+          <thead><tr>
+            <th>Mentor</th><th>Mentees</th><th>Total Sessions</th><th>${thisMonth}</th><th>Status</th>
           </tr></thead>
           <tbody>
           ${mentorStats.length ? mentorStats.map(m=>`<tr>
@@ -9031,7 +9040,7 @@ function sheetsPost(action, data) {
 
 function processMenteeImport() {
   const rows = document.querySelectorAll('#mi-tbody tr');
-  let imp=0, upd=0, off=0, skip=0, errs=[];
+  let imp=0, upd=0, off=0, skip=0, errs=[], toSync=[];
   rows.forEach((tr,i) => {
     // Read by data-col attribute — matches how rows are built during Excel upload
     function g(col) {
@@ -9049,31 +9058,63 @@ function processMenteeImport() {
           offDate=g('offDate')||'', notes=g('notes')||'';
     if (!name) { skip++; return; }
     const existing = S.mentees.find(m=>m.name.toLowerCase()===name.toLowerCase());
+
+    // Resolve mentor by first trying exact full name, then first-name match
+    function resolveMentor(mentorVal) {
+      if (!mentorVal) return null;
+      var mv = mentorVal.trim();
+      var exact = S.users.find(u => u.name === mv);
+      if (exact) return exact;
+      var mvl = mv.toLowerCase();
+      // first-name match: "Avasha" matches "Avasha Pillay"
+      return S.users.find(u => {
+        var ul = u.name.toLowerCase();
+        return ul === mvl || ul.split(' ')[0] === mvl || mvl === ul.split(' ')[0];
+      }) || null;
+    }
+
     if (action==='Import') {
       if (existing) { errs.push(`Row ${i+1}: "${name}" already exists — use Update`); return; }
-      const mu = S.users.find(u=>u.name===mentor);
-      S.mentees.push({ id:'m'+Date.now()+i, name, gender, race, contact, wifi, dob, email,
+      const mu = resolveMentor(mentor);
+      const newMentee = { id:'m'+Date.now()+i, name, gender, race, contact, wifi, dob, email,
         province, school, grade, career, status, year, sec_email, offDate, notes,
-        subjects, mentorId:mu?.id||'', mentorName:mentor||'', offboarded:false });
+        subjects, mentorId:mu?.id||'', mentorName:mu?.name||mentor||'', offboarded:false };
+      S.mentees.push(newMentee);
+      toSync.push(newMentee);
       logAudit('IMPORT','Mentee',name,'New Record','—',`Grade ${grade} enrolled`,notes);
       imp++;
     } else if (action==='Update' && existing) {
       const prev = existing.mentorName;
-      if (school) existing.school=school;
-      if (grade) existing.grade=grade;
-      if (province) existing.province=province;
-      if (subjects) existing.subjects=subjects;
-      if (mentor && mentor!==existing.mentorName) {
-        const mu=S.users.find(u=>u.name===mentor);
-        if (mu) { existing.mentorId=mu.id; existing.mentorName=mentor; }
-        logAudit('REASSIGN','Mentee',name,'Assigned Mentor',prev,mentor,notes);
+      if (school)    existing.school    = school;
+      if (grade)     existing.grade     = grade;
+      if (province)  existing.province  = province;
+      if (subjects)  existing.subjects  = subjects;
+      if (gender)    existing.gender    = gender;
+      if (race)      existing.race      = race;
+      if (contact)   existing.contact   = contact;
+      if (wifi)      existing.wifi      = wifi;
+      if (dob)       existing.dob       = dob;
+      if (email)     existing.email     = email;
+      if (career)    existing.career    = career;
+      if (status)    existing.status    = status;
+      if (sec_email) existing.sec_email = sec_email;
+      if (notes)     existing.notes     = notes;
+      if (mentor) {
+        const mu = resolveMentor(mentor);
+        if (mu && mu.name !== existing.mentorName) {
+          existing.mentorId   = mu.id;
+          existing.mentorName = mu.name;
+          logAudit('REASSIGN','Mentee',name,'Assigned Mentor',prev,mu.name,notes);
+        }
       }
+      toSync.push(existing);
       logAudit('UPDATE','Mentee',name,'Record Updated','—','Details updated',notes);
       upd++;
     } else if (action==='Offboard') {
       if (!existing) { errs.push(`Row ${i+1}: "${name}" not found`); return; }
-      existing.offboarded=true;
-      existing.offboardDate=offDate||new Date().toISOString().split('T')[0];
+      existing.offboarded    = true;
+      existing.offboardDate  = offDate||new Date().toISOString().split('T')[0];
+      toSync.push(existing);
       logAudit('OFFBOARD','Mentee',name,'Status','Active','Offboarded',notes);
       off++;
     } else if (action && !existing) {
@@ -9082,9 +9123,9 @@ function processMenteeImport() {
   });
   persistState();
 
-  // Sync to Google Sheets — push every imported/updated mentee
+  // Sync ONLY the rows touched in this import batch — prevents duplicate conflict tabs
   if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
-    S.mentees.forEach(function(mentee) {
+    toSync.forEach(function(mentee) {
       sheetsPost('addMentee', Object.assign({}, mentee, {year: mentee.year||CONFIG.year}));
     });
   }
