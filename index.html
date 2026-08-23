@@ -6811,6 +6811,7 @@ function loadLocalState() {
     }
   });
 
+  backfillMentorIds();
   persistState();
 }
 
@@ -10330,6 +10331,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   checkImportParam();        // auto-import from shared link if ?import= param present
   loadLocalState();          // fills S.users, S.mentees, S.sessions
+  console.log('🧑‍🎓 Mentees in state after load:', S.mentees.length, S.mentees.map(function(m){return m.name+' → '+m.mentorName;}));
   buildMentorSelectList();   // populates dropdown (needs S.users)
 });
 
