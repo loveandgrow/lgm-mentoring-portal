@@ -9138,8 +9138,9 @@ function processMenteeImport() {
           sec_email=g('sec_email'), subjects=g('subjects'),
           action=g('action') || 'Import',
           offDate=g('offDate')||'', notes=g('notes')||'';
-    if (!name) { skip++; return; }
+    if (!name) { skip++; console.warn('SKIP row', i+1, '— name is blank. firstName:', JSON.stringify(firstName), 'surname:', JSON.stringify(surname)); return; }
     const existing = S.mentees.find(m=>m.name.toLowerCase()===name.toLowerCase());
+    if (existing && action==='Import') { console.warn('DUPLICATE', name, '— already exists in S.mentees'); }
 
     // Resolve mentor by first trying exact full name, then first-name match
     function resolveMentor(mentorVal) {
