@@ -9588,11 +9588,13 @@ function handleExcelUpload(inputEl, type) {
 
           if (!name) return;
 
-          // Build row inline (mRow is scoped inside importPage, so we build directly here)
+          // Build row — must use <table><tbody> wrapper so browser parses <tr> correctly
           var _mOpts = '<option value="">—</option>';
           _mentorPool.forEach(function(u){ _mOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
-          var tempDiv = document.createElement('div');
-          tempDiv.innerHTML = '<tr>'
+          var tempTable = document.createElement('table');
+          var tempTbody = document.createElement('tbody');
+          tempTable.appendChild(tempTbody);
+          tempTbody.innerHTML = '<tr>'
             +'<td><select '+mAttr+' class="mentor-col-select"><option value="">—</option>'+_mOpts+'</select></td>'
             +'<td><input type="text" placeholder="First name" style="min-width:90px"></td>'
             +'<td><input type="text" placeholder="Surname" style="min-width:90px"></td>'
@@ -9615,7 +9617,7 @@ function handleExcelUpload(inputEl, type) {
             +'<td><input type="text" placeholder="Notes" style="min-width:80px"></td>'
             +'<td><button class="del-mrow" style="background:none;border:none;cursor:pointer;color:#ef4444">&#10005;</button></td>'
             +'</tr>';
-          var tr = tempDiv.querySelector('tr');
+          var tr = tempTbody.querySelector('tr');
           if (!tr) return;
 
           // Append to DOM first so selects are live
