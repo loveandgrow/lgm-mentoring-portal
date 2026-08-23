@@ -9442,13 +9442,34 @@ function handleExcelUpload(inputEl, type) {
 
       const wb    = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
 
-      // Find the right sheet — look for matching sheet name or use first sheet
+      // Find the right sheet — exact match first, then partial, then first non-instructions sheet
       let sheetName = wb.SheetNames[0];
-      wb.SheetNames.forEach(n => {
-        const nl = n.toLowerCase();
-        if (type === 'mentee' && (nl.includes('mentee') || nl.includes('learner'))) sheetName = n;
-        if (type === 'mentor' && nl.includes('mentor')) sheetName = n;
-      });
+      const exactTargets = type === 'mentee'
+        ? ['mentee import','mentee data','mentees','learner import','learner data','learners']
+        : ['mentor import','mentor data','mentors'];
+      const partialKeywords = type === 'mentee' ? ['mentee import','learner import'] : ['mentor import'];
+
+      // 1) Exact match (case-insensitive)
+      const exactMatch = wb.SheetNames.find(n => exactTargets.includes(n.toLowerCase().trim()));
+      if (exactMatch) {
+        sheetName = exactMatch;
+      } else {
+        // 2) Partial match — but exclude sheets named 'instructions'
+        const partialMatch = wb.SheetNames.find(n => {
+          const nl = n.toLowerCase().trim();
+          if (nl.includes('instruction') || nl.includes('guide') || nl.includes('readme')) return false;
+          return partialKeywords.some(kw => nl.includes(kw));
+        });
+        if (partialMatch) sheetName = partialMatch;
+        else {
+          // 3) First sheet that is not instructions/guide
+          const dataSheet = wb.SheetNames.find(n => {
+            const nl = n.toLowerCase().trim();
+            return !nl.includes('instruction') && !nl.includes('guide') && !nl.includes('readme');
+          });
+          if (dataSheet) sheetName = dataSheet;
+        }
+      }
 
       const ws   = wb.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
@@ -9631,7 +9652,11 @@ function handleExcelUpload(inputEl, type) {
 
           loaded++;
         });
-        toast(`✅ ${loaded} mentee row${loaded!==1?'s':''} loaded from Excel — review and click Process Import`);
+        if (loaded === 0) {
+          toast('⚠️ No rows loaded — check the file has data in the "Mentee Import" sheet');
+        } else {
+          toast(`✅ ${loaded} mentee row${loaded!==1?'s':''} loaded from Excel — review and click Process Import`);
+        }
 
       } else if (type === 'mentor') {
         const tbody = document.getElementById('mr-tbody');
