@@ -7130,6 +7130,7 @@ function buildNav() {
   const items = isAdmin ? [
     {id:'dashboard',    label:'📊 Overview'},
     {id:'compliance',   label:'✅ Compliance'},
+    {id:'capture',      label:'✏️ Capture'},
     {id:'all-sessions', label:'📋 Sessions'},
     {id:'all-mentees',  label:'👥 Mentees'},
     {id:'evidence-lib', label:'📎 Evidence'},
@@ -7154,21 +7155,32 @@ function navigate(page) {
   document.getElementById('nb-'+page)?.classList.add('active');
   const wrap = document.getElementById('page-wrap');
   const isAdmin = isFullAdmin();
-  const pages = {
-    'dashboard':    isAdmin ? adminDashboard() : mentorDashboard(),
-    'capture':      capturePage(),
-    'my-mentees':   myMenteesPage(),
-    'my-sessions':  mySessionsPage(),
-    'all-sessions': allSessionsPage(),
-    'all-mentees':  allMenteesPage(),
-    'progress':     progressPage(),
-    'admin-panel':  adminPanel(),
-    'import':       importPage(),
-    'compliance':   complianceDashboard(),
-    'evidence-lib': evidenceLibraryPage(),
-    'pin-reset':    pinResetPage(),
+
+  // Build only the requested page — avoids one broken page crashing the whole nav
+  const pageBuilders = {
+    'dashboard':    function(){ return isAdmin ? adminDashboard() : mentorDashboard(); },
+    'capture':      function(){ return capturePage(); },
+    'my-mentees':   function(){ return myMenteesPage(); },
+    'my-sessions':  function(){ return mySessionsPage(); },
+    'all-sessions': function(){ return allSessionsPage(); },
+    'all-mentees':  function(){ return allMenteesPage(); },
+    'progress':     function(){ return progressPage(); },
+    'admin-panel':  function(){ return adminPanel(); },
+    'import':       function(){ return importPage(); },
+    'compliance':   function(){ return complianceDashboard(); },
+    'evidence-lib': function(){ return evidenceLibraryPage(); },
+    'pin-reset':    function(){ return pinResetPage(); },
   };
-  wrap.innerHTML = pages[page] || mentorDashboard();
+
+  try {
+    var builder = pageBuilders[page] || pageBuilders['dashboard'];
+    wrap.innerHTML = builder();
+  } catch(err) {
+    console.error('navigate(' + page + ') error:', err);
+    wrap.innerHTML = '<div class="card" style="padding:2rem;color:#dc2626">⚠️ Page error: ' + err.message + '</div>';
+    return;
+  }
+
   if (page === 'capture') initCapture();
   if (page === 'progress') renderProgress();
   if (page === 'all-sessions') initFilters();
@@ -11390,6 +11402,7 @@ function buildMobileNav() {
   const adminItems = [
     { id:'dashboard',    icon:'📊', label:'Overview' },
     { id:'compliance',   icon:'✅', label:'Compliance' },
+    { id:'capture',      icon:'✏️', label:'Capture Session' },
     { id:'all-sessions', icon:'📋', label:'All Sessions' },
     { id:'all-mentees',  icon:'👥', label:'All Mentees' },
     { id:'evidence-lib', icon:'📎', label:'Evidence Library' },
