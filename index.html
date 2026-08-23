@@ -8762,26 +8762,26 @@ function importPage() {
     var mOpts = mentorOptsArg !== undefined ? mentorOptsArg : (typeof mentorOpts !== 'undefined' ? mentorOpts : '');
     var pOpts = provOptsArg  !== undefined ? provOptsArg  : (typeof provOpts  !== 'undefined' ? provOpts  : '');
     return '<tr>'
-      +'<td><select '+mAttr+' class="mentor-col-select"><option value="">—</option>'+mOpts+'</select></td>'
-      +'<td><input type="text" placeholder="First name" style="min-width:90px"></td>'
-      +'<td><input type="text" placeholder="Surname" style="min-width:90px"></td>'
-      +'<td><select><option value="">—</option><option>Male</option><option>Female</option><option>Other</option></select></td>'
-      +'<td><input type="text" placeholder="Race" style="width:70px"></td>'
-      +'<td><input type="text" placeholder="Contact" style="width:100px"></td>'
-      +'<td><select><option value="">—</option><option value="Y">Y</option><option value="N">N</option></select></td>'
-      +'<td><input type="date"></td>'
-      +'<td><input type="text" placeholder="Email" style="min-width:110px"></td>'
-      +'<td><select><option value="">—</option>'+pOpts+'</select></td>'
-      +'<td><input type="text" placeholder="School" style="min-width:110px"></td>'
-      +'<td><select><option value="">—</option>'+gradeOpts2+'</select></td>'
-      +'<td><input type="text" placeholder="Career" style="min-width:90px"></td>'
-      +'<td><input type="text" placeholder="Status" style="min-width:100px"></td>'
-      +'<td><input type="number" value="'+new Date().getFullYear()+'" style="width:65px"></td>'
-      +'<td><input type="text" placeholder="Sec.email" style="min-width:100px"></td>'
-      +'<td><input type="text" placeholder="Subjects" style="min-width:140px"></td>'
-      +'<td><select style="font-weight:700;color:var(--green-dark)"><option value="Import">Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option></select></td>'
-      +'<td><input type="date"></td>'
-      +'<td><input type="text" placeholder="Notes" style="min-width:80px"></td>'
+      +'<td><select '+mAttr+' data-col="mentor" class="mentor-col-select"><option value="">—</option>'+mOpts+'</select></td>'
+      +'<td><input type="text" data-col="firstName" placeholder="First name" style="min-width:90px"></td>'
+      +'<td><input type="text" data-col="surname" placeholder="Surname" style="min-width:90px"></td>'
+      +'<td><select data-col="gender"><option value="">—</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></td>'
+      +'<td><input type="text" data-col="race" placeholder="Race" style="width:70px"></td>'
+      +'<td><input type="text" data-col="contact" placeholder="Contact" style="width:100px"></td>'
+      +'<td><select data-col="wifi"><option value="">—</option><option value="Y">Y</option><option value="N">N</option></select></td>'
+      +'<td><input type="date" data-col="dob"></td>'
+      +'<td><input type="text" data-col="email" placeholder="Email" style="min-width:110px"></td>'
+      +'<td><select data-col="province"><option value="">—</option>'+pOpts+'</select></td>'
+      +'<td><input type="text" data-col="school" placeholder="School" style="min-width:110px"></td>'
+      +'<td><select data-col="grade"><option value="">—</option>'+gradeOpts2+'</select></td>'
+      +'<td><input type="text" data-col="career" placeholder="Career" style="min-width:90px"></td>'
+      +'<td><input type="text" data-col="status" placeholder="Status" style="min-width:100px"></td>'
+      +'<td><input type="number" data-col="year" value="'+new Date().getFullYear()+'" style="width:65px"></td>'
+      +'<td><input type="text" data-col="sec_email" placeholder="Sec.email" style="min-width:100px"></td>'
+      +'<td><input type="text" data-col="subjects" placeholder="Subjects" style="min-width:140px"></td>'
+      +'<td><select data-col="action" style="font-weight:700;color:var(--green-dark)"><option value="Import">Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option></select></td>'
+      +'<td><input type="date" data-col="offDate"></td>'
+      +'<td><input type="text" data-col="notes" placeholder="Notes" style="min-width:80px"></td>'
       +'<td><button class="del-mrow" style="background:none;border:none;cursor:pointer;color:#ef4444">&#10005;</button></td>'
       +'</tr>';
   }
@@ -9082,14 +9082,10 @@ function processMenteeImport() {
   });
   persistState();
 
-  // Sync to Google Sheets
+  // Sync to Google Sheets — push every imported/updated mentee
   if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
-    document.querySelectorAll('#mi-tbody tr').forEach(function(tr,i){
-      var f=tr.querySelectorAll('input,select');
-      var name=(f[0]&&f[0].value||'').trim(), action=(f[8]&&f[8].value||'');
-      if (!name || action==='Offboard') return;
-      var mentee = S.mentees.find(function(m){return m.name.toLowerCase()===name.toLowerCase();});
-      if (mentee) sheetsPost('addMentee', Object.assign({}, mentee, {year: mentee.year||CONFIG.year}));
+    S.mentees.forEach(function(mentee) {
+      sheetsPost('addMentee', Object.assign({}, mentee, {year: mentee.year||CONFIG.year}));
     });
   }
 
@@ -9621,83 +9617,78 @@ function handleExcelUpload(inputEl, type) {
           var tr = tempTbody.querySelector('tr');
           if (!tr) return;
 
-          // Helper: set a select by value with fallback to text/partial match
-          function setSelect(col, v) {
-            var el = tr.querySelector('select[data-col="'+col+'"]');
-            if (!el || v === null || v === undefined) return;
+          // Append row to DOM first
+          tbody.appendChild(tr);
+
+          // Direct element references — get all inputs/selects once by data-col
+          // This avoids any querySelector timing issues
+          function findEl(col) { return tr.querySelector('[data-col="'+col+'"]'); }
+
+          // Generic fuzzy-set for selects
+          function fillSelect(el, v) {
+            if (!el || v === null || v === undefined || v === '') return;
             var vs = String(v).trim();
             if (!vs) return;
             var vl = vs.toLowerCase();
-            // Try exact value
             el.value = vs;
-            if (el.value) return;
-            // Try case-insensitive value or text match, then partial
-            var best = null;
+            if (el.value === vs) return;
+            // scan options for best match
+            var best = null, bestScore = 0;
             Array.from(el.options).forEach(function(o) {
               var ov = o.value.toLowerCase(), ot = o.text.toLowerCase();
-              if (ov === vl || ot === vl) { best = o.value; }
-              else if (!best && (ov.startsWith(vl) || ot.startsWith(vl) || vl.startsWith(ov) || vl.startsWith(ot))) { best = o.value; }
+              if (ov === vl || ot === vl) { best = o.value; bestScore = 3; }
+              else if (bestScore < 2 && (ov.replace(/[^a-z0-9]/g,'') === vl.replace(/[^a-z0-9]/g,''))) { best = o.value; bestScore = 2; }
+              else if (bestScore < 1 && (ov.startsWith(vl) || ot.startsWith(vl) || vl.startsWith(ov.substring(0,4)) || vl.startsWith(ot.substring(0,4)))) { best = o.value; bestScore = 1; }
             });
             if (best !== null) el.value = best;
           }
 
-          // Helper: set mentor — match full name or first name
-          function setMentor(v) {
-            var el = tr.querySelector('select[data-col="mentor"]');
-            if (!el || !v) return;
-            var vs = String(v).trim();
-            var vl = vs.toLowerCase();
-            el.value = vs;
-            if (el.value) return;
-            var best = null;
-            Array.from(el.options).forEach(function(o) {
-              var ot = o.text.toLowerCase();
-              if (ot === vl) { best = o.value; }
-              else if (!best && (ot.split(' ')[0] === vl || vl === ot.split(' ')[0])) { best = o.value; }
-            });
-            if (best !== null) el.value = best;
+          // Mentor: match full name or first name
+          var mentorEl = findEl('mentor');
+          var mentorTarget = (_cu && _cu.role !== 'admin') ? _cu.name : mentor;
+          if (mentorEl && mentorTarget) {
+            var mt = String(mentorTarget).trim(), mtl = mt.toLowerCase();
+            mentorEl.value = mt;
+            if (!mentorEl.value) {
+              Array.from(mentorEl.options).forEach(function(o) {
+                var ot = o.text.toLowerCase();
+                if (ot === mtl || ot.split(' ')[0] === mtl || mtl === ot.split(' ')[0]) mentorEl.value = o.value;
+              });
+            }
+          }
+          if (_cu && _cu.role !== 'admin' && mentorEl) {
+            mentorEl.disabled = true;
+            mentorEl.style.background = 'var(--green-light)';
+            mentorEl.style.fontWeight = '700';
           }
 
-          // Helper: set text/number/date input
-          function setInput(col, v) {
-            var el = tr.querySelector('[data-col="'+col+'"]');
-            if (!el || v === null || v === undefined) return;
-            if (v instanceof Date) { el.value = v.toISOString().split('T')[0]; return; }
-            el.value = String(v).trim();
-          }
+          // Selects
+          fillSelect(findEl('gender'),   gender);
+          fillSelect(findEl('wifi'),     wifi);
+          fillSelect(findEl('province'), province);
+          fillSelect(findEl('grade'),    String(grade||''));
+          fillSelect(findEl('action'),   action||'Import');
 
-          // Append row to DOM
-          tbody.appendChild(tr);
+          // Text / number inputs
+          var fld;
+          fld = findEl('firstName'); if (fld) fld.value = firstName || '';
+          fld = findEl('surname');   if (fld) fld.value = surname   || '';
+          fld = findEl('race');      if (fld) fld.value = race      || '';
+          fld = findEl('contact');   if (fld) fld.value = contact   || '';
+          fld = findEl('email');     if (fld) fld.value = email     || '';
+          fld = findEl('school');    if (fld) fld.value = school    || '';
+          fld = findEl('career');    if (fld) fld.value = career    || '';
+          fld = findEl('status');    if (fld) fld.value = status    || '';
+          fld = findEl('year');      if (fld) fld.value = year      || new Date().getFullYear();
+          fld = findEl('sec_email'); if (fld) fld.value = sec_email || '';
+          fld = findEl('subjects');  if (fld) fld.value = subjects  || '';
+          fld = findEl('notes');     if (fld) fld.value = notes     || '';
 
-          // Populate all fields by data-col — no index guessing
-          if (_cu && _cu.role !== 'admin') {
-            setMentor(_cu.name);
-            var mEl = tr.querySelector('select[data-col="mentor"]');
-            if (mEl) { mEl.disabled = true; mEl.style.background = 'var(--green-light)'; mEl.style.fontWeight = '700'; }
-          } else {
-            setMentor(mentor);
-          }
-
-          setSelect('gender',   gender);
-          setSelect('wifi',     wifi);
-          setSelect('province', province);
-          setSelect('grade',    String(grade||''));
-          setSelect('action',   action||'Import');
-
-          setInput('firstName', firstName);
-          setInput('surname',   surname);
-          setInput('race',      race);
-          setInput('contact',   contact);
-          setInput('email',     email);
-          setInput('school',    school);
-          setInput('career',    career);
-          setInput('status',    status);
-          setInput('year',      year || new Date().getFullYear());
-          setInput('sec_email', sec_email);
-          setInput('subjects',  subjects);
-          setInput('notes',     notes);
-          setInput('dob',       dob);
-          setInput('offDate',   offDate);
+          // Date inputs
+          fld = findEl('dob');
+          if (fld) fld.value = (dob instanceof Date) ? dob.toISOString().split('T')[0] : (String(dob||'').replace('T00:00:00.000Z','').substring(0,10));
+          fld = findEl('offDate');
+          if (fld) fld.value = (offDate instanceof Date) ? offDate.toISOString().split('T')[0] : (String(offDate||'').substring(0,10));
 
           // Delete button
           var delBtn = tr.querySelector('.del-mrow');
