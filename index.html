@@ -6816,9 +6816,36 @@ function loadLocalState() {
 }
 
 function backfillMentorIds() {
-  // Fix mentees imported with first-name only mentor — resolve to full user
+  // First: fix any scrambled field records
   S.mentees.forEach(function(m) {
-    if (m.mentorId) return; // already has ID
+    var race    = String(m.race    || '');
+    var contact = String(m.contact || '');
+    var fn      = String(m.firstName || '');
+    var sn      = String(m.surname   || '');
+    var raceIsId   = /^u\d+$/.test(race.trim());
+    var fnIsBlank  = fn.trim() === '';
+    var snIsNumber = /^\d+$/.test(sn.trim());
+    if (raceIsId) {
+      m.mentorId   = m.mentorId   || race;
+      m.mentorName = m.mentorName || contact;
+      m.province   = m.province   || String(m.wifi || '');
+      m.race = ''; m.contact = ''; m.wifi = '';
+    }
+    if (fnIsBlank || snIsNumber) {
+      var parts = (m.name || '').trim().split(' ');
+      m.firstName = parts[0] || '';
+      m.surname   = parts.slice(1).join(' ') || '';
+    }
+    if (!m.firstName && m.name) {
+      var parts = m.name.trim().split(' ');
+      m.firstName = parts[0] || '';
+      m.surname   = parts.slice(1).join(' ') || '';
+    }
+  });
+
+  // Then: resolve mentor first-name to full user
+  S.mentees.forEach(function(m) {
+    if (m.mentorId) return;
     if (!m.mentorName) return;
     var mn = m.mentorName.trim().toLowerCase();
     var u = S.users.find(function(u) {
@@ -9223,25 +9250,42 @@ function processMenteeImport() {
       errs.push(`Row ${i+1}: "${name}" not found — use Import to add new`);
     }
   });
-  // Sanitise any mentees with scrambled fields (firstName = number means grade got stored there)
+  // Sanitise scrambled mentee records — detect by checking if race looks like a userId
+  // or if firstName is blank/numeric (old records stored grade there)
   S.mentees.forEach(function(m) {
-    var fn = String(m.firstName || '');
-    // If firstName is a number or looks like a grade, fields are scrambled — rebuild from name
-    if (fn === '' || /^\d+$/.test(fn.trim()) || fn === m.mentorId || fn === m.mentorName) {
-      var parts = (m.name || '').trim().split(' ');
+    var race    = String(m.race    || '');
+    var contact = String(m.contact || '');
+    var fn      = String(m.firstName || '');
+    var sn      = String(m.surname   || '');
+
+    // Detect scrambled: race = userId (u1,u2..), or surname = school name, or firstName blank with grade in surname
+    var raceIsId    = /^u\d+$/.test(race.trim());
+    var fnIsBlank   = fn.trim() === '';
+    var snIsNumber  = /^\d+$/.test(sn.trim());
+
+    if (raceIsId) {
+      // Old format: race=mentorId, contact=mentorName, wifi=province
+      // The real race,contact,wifi were never stored — blank them
+      m.mentorId   = m.mentorId   || race;
+      m.mentorName = m.mentorName || contact;
+      m.province   = m.province   || String(m.wifi || '');
+      m.race       = '';
+      m.contact    = '';
+      m.wifi       = '';
+    }
+
+    if (fnIsBlank || snIsNumber) {
+      // firstName missing or surname is a grade number — rebuild from name
+      var parts    = (m.name || '').trim().split(' ');
+      m.firstName  = parts[0] || '';
+      m.surname    = parts.slice(1).join(' ') || '';
+    }
+
+    // Always ensure firstName+surname are set from name if still blank
+    if (!m.firstName && !m.surname && m.name) {
+      var parts   = m.name.trim().split(' ');
       m.firstName = parts[0] || '';
       m.surname   = parts.slice(1).join(' ') || '';
-    }
-    // If race looks like a user ID (u1, u2 etc), fields are scrambled from old format
-    if (/^u\d+$/.test(String(m.race || ''))) {
-      // race has mentorId, contact has mentorName, wifi has province — fix them
-      m.mentorId   = m.race   || m.mentorId;
-      m.mentorName = m.contact || m.mentorName;
-      m.province   = m.wifi   || m.province;
-      // Clear the wrongly placed fields
-      m.race    = '';
-      m.contact = '';
-      m.wifi    = '';
     }
   });
 
