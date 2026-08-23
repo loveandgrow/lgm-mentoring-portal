@@ -6591,15 +6591,31 @@ b8lobw34VHra4E87yU8gLCKEfdWp/qra9SyDUzGnhh/85v/Z" alt="LGM" class="loading-logo"
   <p id="loading-msg">Loading&hellip;</p>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" onerror="loadXlsxFallback()"></script>
 <script>
-function loadXlsxFallback() {
-  // Primary CDN failed - try unpkg as backup
-  var s = document.createElement('script');
-  s.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
-  s.crossOrigin = 'anonymous';
-  document.head.appendChild(s);
-}
+// XLSX library loader — tries multiple CDNs in sequence
+(function() {
+  var cdns = [
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+  ];
+  var idx = 0;
+  function tryNext() {
+    if (idx >= cdns.length) {
+      console.error('All XLSX CDNs failed');
+      window._xlsxLoadFailed = true;
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = cdns[idx++];
+    s.onload = function() { console.log('XLSX loaded from', s.src); window._xlsxLoadFailed = false; };
+    s.onerror = function() { console.warn('XLSX CDN failed:', s.src); tryNext(); };
+    document.head.appendChild(s);
+  }
+  tryNext();
+})();
+function loadXlsxFallback() {} // legacy no-op
 </script>
 <script>
 // Global error handler - catches all unhandled errors with details
@@ -9436,11 +9452,16 @@ function handleExcelUpload(inputEl, type) {
   reader.onload = function(e) {
     try {
       if (typeof XLSX === 'undefined') {
-        toast('⚠️ Excel library still loading — please try again in a moment');
+        if (window._xlsxLoadFailed) {
+          toast('❌ Excel library failed to load — check your internet connection and refresh the page');
+        } else {
+          toast('⚠️ Excel library still loading — please wait a moment and try again');
+        }
         return;
       }
 
       const wb    = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+      console.log('📊 Sheets found:', wb.SheetNames);
 
       // Find the right sheet — exact match first, then partial, then first non-instructions sheet
       let sheetName = wb.SheetNames[0];
@@ -9472,7 +9493,9 @@ function handleExcelUpload(inputEl, type) {
       }
 
       const ws   = wb.Sheets[sheetName];
+      console.log('📄 Using sheet:', sheetName);
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      console.log('📋 Total rows parsed:', rows.length, '| First row:', JSON.stringify(rows[0]));
 
       if (rows.length < 2) {
         toast('⚠️ No data rows found in the Excel file');
@@ -9490,7 +9513,9 @@ function handleExcelUpload(inputEl, type) {
       }
 
       const headers = rows[headerRowIdx].map(h => String(h).toLowerCase().trim());
+      console.log('🔑 Header row index:', headerRowIdx, '| Headers:', headers);
       const dataRows = rows.slice(headerRowIdx + 1).filter(r => r.some(c => c !== ''));
+      console.log('📝 Data rows found:', dataRows.length, '| First data row:', JSON.stringify(dataRows[0]));
 
       if (dataRows.length === 0) {
         toast('⚠️ No data found after the header row');
