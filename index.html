@@ -8440,14 +8440,10 @@ function pushLocalToSheets() {
   let pushed = 0;
   const errors = [];
 
-  // Push all mentees
+  // Push all mentees — use sheetsPost so all field aliases are included
   (S.mentees||[]).forEach(function(m) {
     try {
-      fetch(CONFIG.apiUrl, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'text/plain'},
-        body: JSON.stringify({ action:'addMentee', data: Object.assign({}, m, {year: m.year||CONFIG.year}) })
-      }).catch(function(){});
+      sheetsPost('addMentee', Object.assign({}, m, {year: m.year||CONFIG.year}));
       pushed++;
     } catch(e) { errors.push('Mentee: ' + m.name); }
   });
@@ -8455,23 +8451,15 @@ function pushLocalToSheets() {
   // Push all sessions
   (S.sessions||[]).forEach(function(s) {
     try {
-      fetch(CONFIG.apiUrl, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'text/plain'},
-        body: JSON.stringify({ action:'addSession', data: s })
-      }).catch(function(){});
+      sheetsPost('addSession', s);
       pushed++;
     } catch(e) { errors.push('Session: ' + s.id); }
   });
 
-  // Push all users (minus PIN)
+  // Push all users
   (S.users||[]).forEach(function(u) {
     try {
-      fetch(CONFIG.apiUrl, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'text/plain'},
-        body: JSON.stringify({ action:'addUser', data: {id:u.id, name:u.name, role:u.role, province:u.province||'', year:u.year||CONFIG.year} })
-      }).catch(function(){});
+      sheetsPost('addUser', {id:u.id, name:u.name, role:u.role, group:u.group||'', province:u.province||'', year:u.year||CONFIG.year});
       pushed++;
     } catch(e) { errors.push('User: ' + u.name); }
   });
@@ -9075,8 +9063,8 @@ function sheetsPost(action, data) {
     var d = data || {};
     // Split name into first/surname if not already split
     var nameParts = (d.name || '').trim().split(' ');
-    var firstName = d.firstName || nameParts[0] || '';
-    var surname   = d.surname   || nameParts.slice(1).join(' ') || '';
+    var firstName = d.firstName || d['Mentee Name']    || nameParts[0]              || '';
+    var surname   = d.surname   || d['Mentee Surname'] || nameParts.slice(1).join(' ') || '';
     payload.data  = {
       id:           d.id           || '',
       name:         d.name         || (firstName + ' ' + surname).trim(),
@@ -9170,9 +9158,20 @@ function processMenteeImport() {
     if (action==='Import') {
       if (existing) { errs.push(`Row ${i+1}: "${name}" already exists — use Update`); return; }
       const mu = resolveMentor(mentor);
-      const newMentee = { id:'m'+Date.now()+i, name, gender, race, contact, wifi, dob, email,
-        province, school, grade, career, status, year, sec_email, offDate, notes,
-        subjects, mentorId:mu?.id||'', mentorName:mu?.name||mentor||'', offboarded:false };
+      console.log('IMPORT', name, '| mentor cell:', JSON.stringify(mentor), '| resolved to:', mu ? mu.name : 'NULL', '| mentorId:', mu?.id||'NONE');
+      const newMentee = {
+        id:         'm'+Date.now()+i,
+        name,
+        firstName,
+        surname,
+        gender,     race,       contact,    wifi,
+        dob,        email,      province,   school,
+        grade,      career,     status,     year,
+        sec_email,  subjects,   notes,
+        offDate,    offboarded: false,
+        mentorId:   mu?.id   || '',
+        mentorName: mu?.name || mentor || '',
+      };
       S.mentees.push(newMentee);
       toSync.push(newMentee);
       logAudit('IMPORT','Mentee',name,'New Record','—',`Grade ${grade} enrolled`,notes);
