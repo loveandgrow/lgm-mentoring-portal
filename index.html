@@ -8459,7 +8459,16 @@ function pushLocalToSheets() {
   // Push all users
   (S.users||[]).forEach(function(u) {
     try {
-      sheetsPost('addUser', {id:u.id, name:u.name, role:u.role, group:u.group||'', leadMentor:u.leadMentor||'', province:u.province||'', year:u.year||CONFIG.year, offboarded:u.offboarded||false});
+      sheetsPost('addUser', {
+        id:         u.id,
+        name:       u.name,
+        role:       u.role        || '',
+        group:      u.group       || '',
+        leadMentor: u.leadMentor  || '',
+        province:   u.province    || '',
+        year:       u.year        || CONFIG.year,
+        offboarded: u.offboarded  || false
+      });
       pushed++;
     } catch(e) { errors.push('User: ' + u.name); }
   });
@@ -9215,6 +9224,28 @@ function processMenteeImport() {
       errs.push(`Row ${i+1}: "${name}" not found — use Import to add new`);
     }
   });
+  // Sanitise any mentees with scrambled fields (firstName = number means grade got stored there)
+  S.mentees.forEach(function(m) {
+    var fn = String(m.firstName || '');
+    // If firstName is a number or looks like a grade, fields are scrambled — rebuild from name
+    if (fn === '' || /^\d+$/.test(fn.trim()) || fn === m.mentorId || fn === m.mentorName) {
+      var parts = (m.name || '').trim().split(' ');
+      m.firstName = parts[0] || '';
+      m.surname   = parts.slice(1).join(' ') || '';
+    }
+    // If race looks like a user ID (u1, u2 etc), fields are scrambled from old format
+    if (/^u\d+$/.test(String(m.race || ''))) {
+      // race has mentorId, contact has mentorName, wifi has province — fix them
+      m.mentorId   = m.race   || m.mentorId;
+      m.mentorName = m.contact || m.mentorName;
+      m.province   = m.wifi   || m.province;
+      // Clear the wrongly placed fields
+      m.race    = '';
+      m.contact = '';
+      m.wifi    = '';
+    }
+  });
+
   backfillMentorIds();
   persistState();
 
