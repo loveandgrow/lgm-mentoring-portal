@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="app-version" content="202608221750">
+<meta name="app-version" content="202608221800">
 <title>Love and Grow Mentorship — Mentoring Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>:root{--green:#2eaa6e;--green-dark:#1a7a4c;--green-deeper:#0f5233;--green-light:#eaf7f1;--green-mid:#b2dfc8;--gold:#f5a623;--gold-dark:#c47d10;--gold-light:#fef6e8;--gold-mid:#fad498;--cream:#fdfaf4;--warm:#fff9f0;--dark:#142018;--mid:#3a5444;--light:#6a8a76;--border:#d8ead0;--soft:#eaf3e6;--shadow:0 3px 14px rgba(20,50,30,.10);--shadow-lg:0 8px 32px rgba(20,50,30,.16);--r:14px;--r-sm:9px;--r-xs:6px;--font:'Nunito',sans-serif}
@@ -7269,7 +7269,14 @@ function adminDashboard() {
       <div class="card-title" style="margin-bottom:1rem">👤 Mentor Activity — ${thisMonth}</div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Mentor</th><th>Mentees</th><th>Total</th><th>${thisMonth.substring(0,3)}</th><th>Status</th></tr></thead>
+          <thead><tr style="font-size:11px">
+            <th>Mentor ★</th><th>First Name ★</th><th>Surname ★</th>
+            <th>Gender</th><th>Race</th><th>Contact</th><th>Wifi</th>
+            <th>Birthday</th><th>Email</th><th>Province</th>
+            <th>School ★</th><th>Grade ★</th><th>Career</th><th>Status</th>
+            <th>Year ★</th><th>Sec.Email</th><th>Subjects ★</th>
+            <th>Action ★</th><th>Offboard Date</th><th>Notes</th><th></th>
+          </tr></thead>
           <tbody>
           ${mentorStats.length ? mentorStats.map(m=>`<tr>
             <td><div class="av-row"><div class="av sm">${initials(m.name)}</div>${m.name}</div></td>
@@ -8737,24 +8744,26 @@ function importPage() {
     var gradeOpts2 = grades.map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
     return '<tr>'
       +'<td><select '+mAttr+' class="mentor-col-select"><option value="">—</option>'+mentorOpts+'</select></td>'
-      +'<td><input type="text" placeholder="First name" style="min-width:100px"></td>'
-      +'<td><input type="text" placeholder="Surname" style="min-width:100px"></td>'
+      +'<td><input type="text" placeholder="First name" style="min-width:90px"></td>'
+      +'<td><input type="text" placeholder="Surname" style="min-width:90px"></td>'
       +'<td><select><option value="">—</option><option>Male</option><option>Female</option><option>Other</option></select></td>'
-      +'<td><input type="text" placeholder="Race" style="width:80px"></td>'
-      +'<td><input type="text" placeholder="Contact" style="width:110px"></td>'
+      +'<td><input type="text" placeholder="Race" style="width:70px"></td>'
+      +'<td><input type="text" placeholder="Contact" style="width:100px"></td>'
       +'<td><select><option value="">—</option><option value="Y">Y</option><option value="N">N</option></select></td>'
       +'<td><input type="date"></td>'
-      +'<td><input type="text" placeholder="Email" style="min-width:120px"></td>'
+      +'<td><input type="text" placeholder="Email" style="min-width:110px"></td>'
       +'<td><select><option value="">—</option>'+provOpts+'</select></td>'
-      +'<td><input type="text" placeholder="School" style="min-width:120px"></td>'
+      +'<td><input type="text" placeholder="School" style="min-width:110px"></td>'
       +'<td><select><option value="">—</option>'+gradeOpts2+'</select></td>'
-      +'<td><input type="text" placeholder="Career" style="min-width:100px"></td>'
-      +'<td><input type="text" placeholder="Enrolment status" style="min-width:120px"></td>'
-      +'<td><input type="number" value="'+new Date().getFullYear()+'" style="width:72px"></td>'
-      +'<td><input type="text" placeholder="Sec. email" style="min-width:110px"></td>'
-      +'<td><input type="text" placeholder="Subjects" style="min-width:150px"></td>'
+      +'<td><input type="text" placeholder="Career" style="min-width:90px"></td>'
+      +'<td><input type="text" placeholder="Status" style="min-width:100px"></td>'
+      +'<td><input type="number" value="'+new Date().getFullYear()+'" style="width:65px"></td>'
+      +'<td><input type="text" placeholder="Sec.email" style="min-width:100px"></td>'
+      +'<td><input type="text" placeholder="Subjects" style="min-width:140px"></td>'
       +'<td><select style="font-weight:700;color:var(--green-dark)"><option value="Import">Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option></select></td>'
-      +'<td><button class="del-mrow" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px">&#10005;</button></td>'
+      +'<td><input type="date"></td>'
+      +'<td><input type="text" placeholder="Notes" style="min-width:80px"></td>'
+      +'<td><button class="del-mrow" style="background:none;border:none;cursor:pointer;color:#ef4444">&#10005;</button></td>'
       +'</tr>';
   }
   function mrRow() {
@@ -9006,10 +9015,9 @@ function processMenteeImport() {
   let imp=0, upd=0, off=0, skip=0, errs=[];
   rows.forEach((tr,i) => {
     const f = tr.querySelectorAll('input,select');
-    // Column order matches table and Excel file:
-    // [0]mentor [1]firstName [2]surname [3]gender [4]race [5]contact [6]wifi
-    // [7]dob [8]email [9]province [10]school [11]grade [12]career [13]status
-    // [14]year [15]sec_email [16]subjects [17]action
+    // Column order: [0]mentor [1]firstName [2]surname [3]gender [4]race [5]contact
+    // [6]wifi [7]dob [8]email [9]province [10]school [11]grade [12]career [13]status
+    // [14]year [15]sec_email [16]subjects [17]action [18]offDate [19]notes
     const mentor=f[0]?.value, firstName=f[1]?.value?.trim(), surname=f[2]?.value?.trim(),
           name=(firstName&&surname ? firstName+' '+surname : firstName||surname||'').trim(),
           gender=f[3]?.value, race=f[4]?.value,
@@ -9018,14 +9026,14 @@ function processMenteeImport() {
           career=f[12]?.value, status=f[13]?.value, year=f[14]?.value,
           sec_email=f[15]?.value, subjects=f[16]?.value?.trim(),
           action=f[17]?.value || 'Import',
-          offDate='', notes='';
+          offDate=f[18]?.value||'', notes=f[19]?.value||'';
     if (!name) { skip++; return; }
     const existing = S.mentees.find(m=>m.name.toLowerCase()===name.toLowerCase());
     if (action==='Import') {
       if (existing) { errs.push(`Row ${i+1}: "${name}" already exists — use Update`); return; }
       const mu = S.users.find(u=>u.name===mentor);
       S.mentees.push({ id:'m'+Date.now()+i, name, gender, race, contact, wifi, dob, email,
-        province, school, grade, career, status, year, sec_email,
+        province, school, grade, career, status, year, sec_email, offDate, notes,
         subjects, mentorId:mu?.id||'', mentorName:mentor||'', offboarded:false });
       logAudit('IMPORT','Mentee',name,'New Record','—',`Grade ${grade} enrolled`,notes);
       imp++;
@@ -9472,135 +9480,105 @@ function handleExcelUpload(inputEl, type) {
         const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(g=>`<option value="${g}">${g}</option>`).join('');
 
         dataRows.forEach(row => {
-          // Support both combined and split name columns
-          const firstName = val(row, ['mentee name','first name','name']);
-          const surname   = val(row, ['mentee surname','surname','last name']);
-          const name      = val(row, ['mentee full name','full name']) ||
-                            (firstName && surname ? firstName.trim()+' '+surname.trim() : (firstName||surname||'').trim());
-          const gender    = val(row, ['gender']);
-          const race      = val(row, ['race']);
-          const contact   = val(row, ['contact no.','contact no','contact number','phone']);
-          const wifi      = val(row, ['wi-fi (y/n)','wifi','wi-fi']);
-          const dob       = val(row, ['birthday','date of birth','dob','birth']);
-          const email     = val(row, ['mentee email address','email','mentee email']);
-          const province  = val(row, ['province - municipality','province','prov']);
-          const school    = val(row, ['school / tertiary institution','school','institution']);
-          const grade     = val(row, ['grade','class','level']);
-          const career    = val(row, ['career choices','career']);
-          const status    = val(row, ['lgm program enrolment status','enrolment status','status']);
-          const year      = val(row, ['lgm program enrolment year','enrollment year','enrolment year','year']) || new Date().getFullYear();
-          const sec_email   = val(row, ['email address secondary contact','secondary email']);
-          const subjects  = val(row, ['subjects','subject','subject list','subject(s)']);
-          const mentor    = val(row, ['assigned mentor','mentor','assigned']);
-          const action    = val(row, ['action (import/update/offboard)','action']) || 'Import';
-          const offDate   = val(row, ['offboard date','offboard','off date','deactivat']);
-          const notes     = val(row, ['notes','note','comment','remark']);
+          // Read all fields by column name (robust — order doesn't matter)
+          const firstName   = val(row, ['mentee name','first name']);
+          const surname     = val(row, ['mentee surname','surname','last name']);
+          const name        = val(row, ['mentee full name','full name']) ||
+                              (firstName&&surname ? firstName.trim()+' '+surname.trim() : (firstName||surname||'').trim());
+          const gender      = val(row, ['gender']);
+          const race        = val(row, ['race']);
+          const contact     = val(row, ['contact no','contact number','contact']);
+          const wifi        = val(row, ['wi-fi','wifi']);
+          const dob         = val(row, ['birthday','date of birth','dob']);
+          const email       = val(row, ['mentee email','email']);
+          const province    = val(row, ['province']);
+          const school      = val(row, ['school','tertiary institution']);
+          const grade       = val(row, ['grade']);
+          const career      = val(row, ['career']);
+          const status      = val(row, ['enrolment status','enrollment status','lgm program enrolment status']);
+          const year        = val(row, ['enrolment year','enrollment year','lgm program enrolment year']) || new Date().getFullYear();
+          const sec_email   = val(row, ['secondary contact','sec','email address secondary']);
+          const subjects    = val(row, ['subjects','subject']);
+          const mentor      = val(row, ['assigned mentor','mentor']);
+          const action      = val(row, ['action']) || 'Import';
+          const offDate     = val(row, ['offboard date','offboard']);
+          const notes       = val(row, ['notes','note']);
 
           if (!name) return;
 
-          const genderOpts = ['Male','Female','Other'].map(function(g){
-            return '<option value="'+g+'"'+(gender===g?' selected':'')+'>'+g+'</option>';
-          }).join('');
+          // Build row using mRow() template — guaranteed same structure
+          var tempDiv = document.createElement('div');
+          tempDiv.innerHTML = mRow();
+          var tr = tempDiv.querySelector('tr');
+          if (!tr) return;
 
-          const tr = document.createElement('tr');
-          tr.innerHTML =
-            '<td><input type="text" value="'+escHtml(name)+'" style="min-width:130px"></td>'
-            +'<td><select><option value="">—</option>'+genderOpts+'</select></td>'
-            +'<td><input type="text" value="'+escHtml(race)+'" placeholder="Race" style="width:80px"></td>'
-            +'<td><input type="text" value="'+escHtml(contact)+'" placeholder="Contact No." style="width:110px"></td>'
-            +'<td><select><option value="">—</option><option value="Y"'+(wifi==='Y'?' selected':'')+'>Y</option><option value="N"'+(wifi==='N'?' selected':'')+'>N</option></select></td>'
-            +'<td><input type="date" value="'+escHtml(dob)+'"></td>'
-            +'<td><input type="text" value="'+escHtml(email)+'" placeholder="Email" style="min-width:120px"></td>'
-            +'<td><select><option value="">—</option>'+provOpts+'</select></td>'
-            +'<td><input type="text" value="'+escHtml(school)+'" style="min-width:120px"></td>'
-            +'<td><select><option value="">—</option>'+gradeOpts+'</select></td>'
-            +'<td><input type="text" value="'+escHtml(career)+'" placeholder="Career choices" style="min-width:110px"></td>'
-            +'<td><input type="text" value="'+escHtml(status)+'" placeholder="Status" style="min-width:110px"></td>'
-            +'<td><input type="number" value="'+escHtml(String(year))+'" style="width:72px"></td>'
-            +'<td><input type="text" value="'+escHtml(sec_email)+'" placeholder="Secondary email" style="min-width:120px"></td>'
-            +'<td><input type="text" value="'+escHtml(subjects)+'" style="min-width:140px"></td>'
-            +'<td><select><option value="">—</option>'+mentorOpts+'</select></td>'
-            +'<td><select style="font-weight:700;color:var(--green-dark)">'
-            +'<option value="Import"'+(action==='Import'?' selected':'')+'>Import</option>'
-            +'<option value="Update"'+(action==='Update'?' selected':'')+'>Update</option>'
-            +'<option value="Offboard"'+(action==='Offboard'?' selected':'')+'>Offboard</option>'
-            +'</select></td>'
-            +'<td><button class="del-mi-row2" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:16px">&#10005;</button></td>';
+          // Inject fresh mentor options
+          var mentorSel = tr.querySelector('.mentor-col-select');
+          if (mentorSel) {
+            var freshOpts = '<option value="">—</option>';
+            _pool.forEach(function(u){ freshOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
+            mentorSel.innerHTML = freshOpts;
+          }
 
-          // Inject fresh mentor options before appending
-          var _cu = currentUser();
-          var _pool = (_cu && _cu.group === 'lead')
-            ? S.users.filter(function(u){ return !u.offboarded && (u.id===_cu.id||u.leadMentor===_cu.name); })
-            : S.users.filter(function(u){ return !u.offboarded; });
-          var freshMentorOpts = '<option value="">—</option>';
-          _pool.forEach(function(u){ freshMentorOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
-          var mentorSel2 = tr.querySelector('.mentor-col-select');
-          if (mentorSel2) mentorSel2.innerHTML = freshMentorOpts;
-
+          // Append to DOM first so selects are live
           tbody.appendChild(tr);
 
-          var sels = tr.querySelectorAll('select');
-
           // Helper: set select by value or text match
-          function setSelect(sel, val) {
-            if (!sel || val === undefined || val === null || val === '') return;
-            var v = String(val).trim();
-            sel.value = v;
-            if (!sel.value) {
-              var vl = v.toLowerCase();
-              Array.from(sel.options).forEach(function(o){
-                if (o.value.toLowerCase()===vl || o.text.toLowerCase()===vl) sel.value = o.value;
+          function sel(el, v) {
+            if (!el||!v) return;
+            el.value = String(v).trim();
+            if (!el.value) {
+              var vl = String(v).trim().toLowerCase();
+              Array.from(el.options).forEach(function(o){
+                if (o.value.toLowerCase()===vl||o.text.toLowerCase()===vl) el.value=o.value;
               });
             }
           }
 
-          // [0] Mentor dropdown
+          // Get all selects: [0]mentor [1]gender [2]wifi [3]province [4]grade [5]action
+          var selects   = tr.querySelectorAll('select');
+          // Get all text inputs: [0]firstName [1]surname [2]race [3]contact [4]email [5]school [6]career [7]status [8]sec_email [9]subjects [10]notes
+          var textInps  = Array.from(tr.querySelectorAll('input[type=text]'));
+          var numInps   = Array.from(tr.querySelectorAll('input[type=number]'));
+          var dateInps  = Array.from(tr.querySelectorAll('input[type=date]'));
+
+          // Set selects
           var mentorVal = (_cu && _cu.role !== 'admin') ? _cu.name : (mentor || '');
-          setSelect(sels[0], mentorVal);
-          if (_cu && _cu.role !== 'admin' && sels[0]) {
-            sels[0].disabled = true;
-            sels[0].style.background = 'var(--green-light)';
-            sels[0].style.fontWeight = '700';
+          sel(selects[0], mentorVal);
+          if (_cu && _cu.role !== 'admin' && selects[0]) {
+            selects[0].disabled = true;
+            selects[0].style.background = 'var(--green-light)';
+            selects[0].style.fontWeight = '700';
           }
-          // [1] Gender
-          setSelect(sels[1], gender);
-          // [2] Wifi
-          setSelect(sels[2], wifi);
-          // [3] Province
-          setSelect(sels[3], province);
-          // [4] Grade
-          setSelect(sels[4], String(grade || ''));
-          // [5] Action
-          setSelect(sels[5], action || 'Import');
+          sel(selects[1], gender);
+          sel(selects[2], wifi);
+          sel(selects[3], province);
+          sel(selects[4], String(grade||''));
+          sel(selects[5], action||'Import');
 
-          // Set all text/number inputs by position in the row
-          // Row structure: mentor(sel) | firstName(txt) | surname(txt) | gender(sel) | race(txt) | 
-          //   contact(txt) | wifi(sel) | birthday(date) | email(txt) | province(sel) | school(txt) |
-          //   grade(sel) | career(txt) | status(txt) | year(num) | sec_email(txt) | subjects(txt) | action(sel)
-          var allInputs = tr.querySelectorAll('input');
-          // Text inputs in order: firstName, surname, race, contact, email, school, career, status, sec_email, subjects
-          var textInputs = Array.from(tr.querySelectorAll('input[type=text]'));
-          var numInputs  = Array.from(tr.querySelectorAll('input[type=number]'));
-          var dateInputs = Array.from(tr.querySelectorAll('input[type=date]'));
+          // Set text inputs
+          if (textInps[0])  textInps[0].value  = firstName  || '';
+          if (textInps[1])  textInps[1].value  = surname    || '';
+          if (textInps[2])  textInps[2].value  = race       || '';
+          if (textInps[3])  textInps[3].value  = contact    || '';
+          if (textInps[4])  textInps[4].value  = email      || '';
+          if (textInps[5])  textInps[5].value  = school     || '';
+          if (textInps[6])  textInps[6].value  = career     || '';
+          if (textInps[7])  textInps[7].value  = status     || '';
+          if (textInps[8])  textInps[8].value  = sec_email  || '';
+          if (textInps[9])  textInps[9].value  = subjects   || '';
+          if (textInps[10]) textInps[10].value = notes      || '';
+          if (numInps[0])   numInps[0].value   = year       || new Date().getFullYear();
+          // Date inputs: [0]=birthday [1]=offboard date
+          if (dateInps[0])  dateInps[0].value  = typeof dob==='object'&&dob ? dob.toISOString().split('T')[0] : (dob||'');
+          if (dateInps[1])  dateInps[1].value  = typeof offDate==='object'&&offDate ? offDate.toISOString().split('T')[0] : (offDate||'');
 
-          if (textInputs[0]) textInputs[0].value = firstName || '';  // First Name
-          if (textInputs[1]) textInputs[1].value = surname   || '';  // Surname
-          if (textInputs[2]) textInputs[2].value = race      || '';  // Race
-          if (textInputs[3]) textInputs[3].value = contact   || '';  // Contact
-          if (textInputs[4]) textInputs[4].value = email     || '';  // Email
-          if (textInputs[5]) textInputs[5].value = school    || '';  // School
-          if (textInputs[6]) textInputs[6].value = career    || '';  // Career
-          if (textInputs[7]) textInputs[7].value = status    || '';  // Status
-          if (textInputs[8]) textInputs[8].value = sec_email || '';  // Sec Email
-          if (textInputs[9]) textInputs[9].value = subjects  || '';  // Subjects
-          if (numInputs[0])  numInputs[0].value  = year      || new Date().getFullYear(); // Year
-          if (dateInputs[0]) dateInputs[0].value = typeof dob === 'object' && dob
-            ? dob.toISOString().split('T')[0] : (dob || '');        // Birthday
-          var delBtn2 = tr.querySelector('.del-mi-row2');
-          if (delBtn2) delBtn2.addEventListener('click', function(){ tr.parentNode&&tr.parentNode.removeChild(tr); });
+          // Delete button
+          var delBtn = tr.querySelector('.del-mrow');
+          if (delBtn) delBtn.addEventListener('click', function(){ if(tr.parentNode) tr.parentNode.removeChild(tr); });
+
           loaded++;
         });
-
         toast(`✅ ${loaded} mentee row${loaded!==1?'s':''} loaded from Excel — review and click Process Import`);
 
       } else if (type === 'mentor') {
@@ -10158,7 +10136,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608221750';
+  var _appVersion = '202608221800';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
