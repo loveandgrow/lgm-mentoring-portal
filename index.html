@@ -8170,7 +8170,7 @@ function filterSessions() {
 function allMenteesPage() {
   return `<div class="page-header gold"><h1>👥 All Mentees</h1><p>Every mentee registered across all mentors.</p></div>
   <div class="card">
-    <div class="card-hdr"><div class="card-title">All Mentees (${S.mentees.length})</div><button class="btn btn-gold btn-sm" onclick="exportAllData()">⬇️ Export</button></div>
+    <div class="card-hdr"><div class="card-title">All Mentees (${S.mentees.length})</div><button class="btn btn-gold btn-sm" onclick="exportMenteesOnly()">⬇️ Export Mentees</button></div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Name</th><th>Grade</th><th>School</th><th>Mentor</th><th>Sessions</th></tr></thead>
       <tbody>${S.mentees.length?S.mentees.map(m=>{
@@ -8706,6 +8706,26 @@ function exportAllData() {
   buildExport(S.sessions, 'LGM_AllMentors_Portfolio_'+CONFIG.year+'.xlsx');
 }
 
+function exportMenteesOnly() {
+  if (!S.mentees.length) { toast('No mentees to export'); return; }
+  if (typeof XLSX === 'undefined') { toast('Excel library still loading — try again in a moment'); return; }
+  const wb = XLSX.utils.book_new();
+  const h = ['Assigned Mentor','First Name','Surname','Gender','Race','Contact No.','Wi-fi (Y/N)','Birthday','Email','Province','School','Grade','Career','Enrolment Status','Enrolment Year','Secondary Email','Subjects','Notes','Sessions This Year'];
+  const rows = [h, ...S.mentees.filter(function(m){ return !m.offboarded; }).map(function(m){
+    var nameParts = (m.name||'').trim().split(' ');
+    var firstName = m.firstName || nameParts[0] || '';
+    var surname   = m.surname   || nameParts.slice(1).join(' ') || '';
+    var cnt = S.sessions.filter(function(s){ return s.menteeId===m.id; }).length;
+    var mentor = S.users.find(function(u){ return u.id===m.mentorId; });
+    return [mentor?.name||m.mentorName||'', firstName, surname, m.gender||'', m.race||'', m.contact||'', m.wifi||'', m.dob||'', m.email||'', m.province||'', m.school||'', m.grade||'', m.career||'', m.status||'', m.year||CONFIG.year, m.sec_email||'', m.subjects||'', m.notes||'', cnt];
+  })];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [18,14,14,10,10,14,10,12,24,18,24,8,16,28,10,24,40,20,8].map(function(w){return {wch:w};});
+  XLSX.utils.book_append_sheet(wb, ws, 'Mentees');
+  XLSX.writeFile(wb, 'LGM_Mentees_'+CONFIG.year+'.xlsx');
+  toast('📥 Mentee export downloaded — '+S.mentees.filter(function(m){return !m.offboarded;}).length+' mentees');
+}
+
 function buildExport(sessions, filename) {
   const wb = XLSX.utils.book_new();
   const h = ['Mentee','Grade','School','Mentor','Month','Session Type(s)','Date','Format','Duration','Wellbeing','Engagement','Quality','Check-In Notes','School Update','Focus Notes','Action Items','Next Session','Short Goal','Long Goal','Evidence Link'];
@@ -8713,13 +8733,18 @@ function buildExport(sessions, filename) {
   const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = h.map(()=>({wch:22}));
   XLSX.utils.book_append_sheet(wb, ws, 'Sessions');
-  const mh = ['Name','Grade','School','Gender','Mentor','Sessions'];
-  const mr = [mh, ...S.mentees.map(m=>{
-    const cnt=S.sessions.filter(s=>s.menteeId===m.id).length;
-    const mentor=S.users.find(u=>u.id===m.mentorId);
-    return [m.name,m.grade,m.school,m.gender,mentor?.name||'',cnt];
+  const mh = ['Assigned Mentor','First Name','Surname','Gender','Race','Contact No.','Wi-fi (Y/N)','Birthday','Email','Province','School','Grade','Career','Enrolment Status','Enrolment Year','Secondary Email','Subjects','Notes','Sessions This Year'];
+  const mr = [mh, ...S.mentees.filter(m=>!m.offboarded).map(m=>{
+    const nameParts = (m.name||'').trim().split(' ');
+    const firstName = m.firstName || nameParts[0] || '';
+    const surname   = m.surname   || nameParts.slice(1).join(' ') || '';
+    const cnt = S.sessions.filter(s=>s.menteeId===m.id).length;
+    const mentor = S.users.find(u=>u.id===m.mentorId);
+    return [mentor?.name||m.mentorName||'', firstName, surname, m.gender||'', m.race||'', m.contact||'', m.wifi||'', m.dob||'', m.email||'', m.province||'', m.school||'', m.grade||'', m.career||'', m.status||'', m.year||CONFIG.year, m.sec_email||'', m.subjects||'', m.notes||'', cnt];
   })];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mr), 'Mentees');
+  const mws = XLSX.utils.aoa_to_sheet(mr);
+  mws['!cols'] = [18,14,14,10,10,14,10,12,24,18,24,8,16,28,10,24,40,20,8].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, mws, 'Mentees');
   XLSX.writeFile(wb, filename);
   toast('📥 Export downloaded!');
 }
@@ -9043,11 +9068,67 @@ function addMrRow() {
 // ── Fire-and-forget POST to Sheets (no-cors, works on all devices) ───────────
 function sheetsPost(action, data) {
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return;
+
+  // For addMentee — send a fully explicit flat object so Apps Script reads all columns
+  var payload = { action: action, data: data };
+  if (action === 'addMentee') {
+    var d = data || {};
+    // Split name into first/surname if not already split
+    var nameParts = (d.name || '').trim().split(' ');
+    var firstName = d.firstName || nameParts[0] || '';
+    var surname   = d.surname   || nameParts.slice(1).join(' ') || '';
+    payload.data  = {
+      id:           d.id           || '',
+      name:         d.name         || (firstName + ' ' + surname).trim(),
+      firstName:    firstName,
+      surname:      surname,
+      gender:       d.gender       || '',
+      race:         d.race         || '',
+      contact:      d.contact      || '',
+      wifi:         d.wifi         || '',
+      dob:          d.dob          || '',
+      birthday:     d.dob          || '',   // alias
+      email:        d.email        || '',
+      province:     d.province     || '',
+      school:       d.school       || '',
+      grade:        d.grade        || '',
+      career:       d.career       || '',
+      status:       d.status       || '',
+      year:         d.year         || CONFIG.year,
+      sec_email:    d.sec_email    || '',
+      subjects:     d.subjects     || '',
+      mentorId:     d.mentorId     || '',
+      mentorName:   d.mentorName   || '',
+      offboarded:   d.offboarded   || false,
+      offboardDate: d.offboardDate || d.offDate || '',
+      notes:        d.notes        || '',
+      // Extra aliases some Apps Scripts use
+      'Assigned Mentor':              d.mentorName   || '',
+      'Mentee Name':                  firstName,
+      'Mentee Surname':               surname,
+      'Gender':                       d.gender       || '',
+      'Race':                         d.race         || '',
+      'Contact No.':                  d.contact      || '',
+      'Wi-fi (Y/N)':                  d.wifi         || '',
+      'Birthday':                     d.dob          || '',
+      'Mentee Email Address':         d.email        || '',
+      'Province - Municipality':      d.province     || '',
+      'School / Tertiary Institution':d.school       || '',
+      'Grade':                        d.grade        || '',
+      'Career Choices':               d.career       || '',
+      'LGM Program Enrolment Status': d.status       || '',
+      'LGM Program Enrolment Year':   d.year         || CONFIG.year,
+      'Email Address Secondary Contact': d.sec_email || '',
+      'Subjects':                     d.subjects     || '',
+      'Notes':                        d.notes        || '',
+    };
+  }
+
   fetch(CONFIG.apiUrl, {
     method: 'POST',
     mode:   'no-cors',
     headers:{ 'Content-Type': 'text/plain' },
-    body:   JSON.stringify({ action, data })
+    body:   JSON.stringify(payload)
   }).catch(function(){});
 }
 
@@ -9648,6 +9729,8 @@ function handleExcelUpload(inputEl, type) {
           const offDate     = val(row, ['offboard date','offboard']);
           const notes       = val(row, ['notes','note']);
 
+          console.log('ROW', name, '| gender:', JSON.stringify(gender), '| wifi:', JSON.stringify(wifi), '| province:', JSON.stringify(province));
+
           if (!name) return;
 
           // Build row — must use <table><tbody> wrapper so browser parses <tr> correctly
@@ -9735,6 +9818,7 @@ function handleExcelUpload(inputEl, type) {
           fillSelect(findEl('gender'),   gender);
           fillSelect(findEl('wifi'),     wifi);
           fillSelect(findEl('province'), province);
+          console.log('  → after fill | gender el:', findEl('gender')?.value, '| wifi el:', findEl('wifi')?.value, '| province el:', findEl('province')?.value);
           fillSelect(findEl('grade'),    String(grade||''));
           fillSelect(findEl('action'),   action||'Import');
 
