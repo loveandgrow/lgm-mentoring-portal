@@ -8459,7 +8459,7 @@ function pushLocalToSheets() {
   // Push all users
   (S.users||[]).forEach(function(u) {
     try {
-      sheetsPost('addUser', {id:u.id, name:u.name, role:u.role, group:u.group||'', province:u.province||'', year:u.year||CONFIG.year});
+      sheetsPost('addUser', {id:u.id, name:u.name, role:u.role, group:u.group||'', leadMentor:u.leadMentor||'', province:u.province||'', year:u.year||CONFIG.year, offboarded:u.offboarded||false});
       pushed++;
     } catch(e) { errors.push('User: ' + u.name); }
   });
