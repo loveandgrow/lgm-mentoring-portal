@@ -8456,25 +8456,20 @@ function pushLocalToSheets() {
     } catch(e) { errors.push('Session: ' + s.id); }
   });
 
-  // Push all users — merge with DEMO_USERS to ensure group/leadMentor always present
-  var allUsers = (S.users||[]).map(function(u) {
-    var demo = (typeof DEMO_USERS !== 'undefined' ? DEMO_USERS : []).find(function(d){ return d.id === u.id || d.name === u.name; }) || {};
-    return {
-      id:         u.id          || demo.id         || '',
-      name:       u.name        || demo.name        || '',
-      role:       u.role        || demo.role        || '',
-      group:      u.group       || demo.group       || '',
-      leadMentor: u.leadMentor  || demo.leadMentor  || '',
-      province:   u.province    || demo.province    || '',
-      year:       u.year        || CONFIG.year,
-      offboarded: u.offboarded  || false
-    };
-  });
-  allUsers.forEach(function(u) {
+  // Push all users — always merge from DEMO_USERS to get correct group/leadMentor
+  DEMO_USERS.forEach(function(demo) {
+    var stored = (S.users||[]).find(function(u){ return u.id === demo.id || u.name === demo.name; }) || {};
     try {
-      sheetsPost('addUser', u);
+      sheetsPost('addUser', {
+        id:          demo.id,
+        name:        demo.name,
+        role:        demo.role        || stored.role        || '',
+        group:       demo.group       || stored.group       || '',
+        leadMentor:  demo.leadMentor  || stored.leadMentor  || '',
+        offboarded:  stored.offboarded || false,
+      });
       pushed++;
-    } catch(e) { errors.push('User: ' + u.name); }
+    } catch(e) { errors.push('User: ' + demo.name); }
   });
 
   // Give the no-cors requests 3 seconds to fire then confirm
