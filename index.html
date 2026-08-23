@@ -8456,19 +8456,23 @@ function pushLocalToSheets() {
     } catch(e) { errors.push('Session: ' + s.id); }
   });
 
-  // Push all users
-  (S.users||[]).forEach(function(u) {
+  // Push all users — merge with DEMO_USERS to ensure group/leadMentor always present
+  var allUsers = (S.users||[]).map(function(u) {
+    var demo = (typeof DEMO_USERS !== 'undefined' ? DEMO_USERS : []).find(function(d){ return d.id === u.id || d.name === u.name; }) || {};
+    return {
+      id:         u.id          || demo.id         || '',
+      name:       u.name        || demo.name        || '',
+      role:       u.role        || demo.role        || '',
+      group:      u.group       || demo.group       || '',
+      leadMentor: u.leadMentor  || demo.leadMentor  || '',
+      province:   u.province    || demo.province    || '',
+      year:       u.year        || CONFIG.year,
+      offboarded: u.offboarded  || false
+    };
+  });
+  allUsers.forEach(function(u) {
     try {
-      sheetsPost('addUser', {
-        id:         u.id,
-        name:       u.name,
-        role:       u.role        || '',
-        group:      u.group       || '',
-        leadMentor: u.leadMentor  || '',
-        province:   u.province    || '',
-        year:       u.year        || CONFIG.year,
-        offboarded: u.offboarded  || false
-      });
+      sheetsPost('addUser', u);
       pushed++;
     } catch(e) { errors.push('User: ' + u.name); }
   });
@@ -9320,7 +9324,7 @@ function processMentorImport() {
       var name=(f[0]&&f[0].value||'').trim(), action=(f[8]&&f[8].value||'');
       if (!name || action==='Offboard') return;
       var user = S.users.find(function(u){return u.name.toLowerCase()===name.toLowerCase();});
-      if (user) sheetsPost('addUser', {id:user.id, name:user.name, role:user.role, province:user.province||'', year:user.year||CONFIG.year});
+      if (user) sheetsPost('addUser', {id:user.id, name:user.name, role:user.role, group:user.group||'', leadMentor:user.leadMentor||'', province:user.province||'', year:user.year||CONFIG.year, offboarded:user.offboarded||false});
     });
   }
 
@@ -11385,7 +11389,7 @@ function submitAddMissingUser() {
   S.users.push(newUser);
   persistState();
   // Also sync to Sheets (no PIN sent)
-  sheetsPost('addUser', { id:newUser.id, name:newUser.name, role:newUser.role, province:'', year:CONFIG.year });
+  sheetsPost('addUser', { id:newUser.id, name:newUser.name, role:newUser.role, group:newUser.group||'', leadMentor:newUser.leadMentor||'', province:newUser.province||'', year:CONFIG.year, offboarded:false });
   toast('✅ ' + name + ' added! Reloading…');
   setTimeout(() => location.reload(), 800);
 }
