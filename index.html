@@ -9623,38 +9623,71 @@ function handleExcelUpload(inputEl, type) {
           // Append to DOM first so selects are live
           tbody.appendChild(tr);
 
-          // Helper: set select by value or text match
+          // Helper: set select by exact value, then text match, then partial match
           function sel(el, v) {
-            if (!el||!v) return;
-            el.value = String(v).trim();
-            if (!el.value) {
-              var vl = String(v).trim().toLowerCase();
-              Array.from(el.options).forEach(function(o){
-                if (o.value.toLowerCase()===vl||o.text.toLowerCase()===vl) el.value=o.value;
-              });
-            }
+            if (!el || v === null || v === undefined || v === '') return;
+            var vs = String(v).trim();
+            var vl = vs.toLowerCase();
+            // 1) exact value match
+            el.value = vs;
+            if (el.value === vs) return;
+            // 2) exact text/value match case-insensitive
+            var matched = false;
+            Array.from(el.options).forEach(function(o){
+              if (!matched && (o.value.toLowerCase() === vl || o.text.toLowerCase() === vl)) {
+                el.value = o.value; matched = true;
+              }
+            });
+            if (matched) return;
+            // 3) partial match — option text starts with the value (handles province "KwaZulu Natal " -> "KwaZulu-Natal")
+            Array.from(el.options).forEach(function(o){
+              if (!matched && (o.value.toLowerCase().startsWith(vl) || o.text.toLowerCase().startsWith(vl) ||
+                  vl.startsWith(o.value.toLowerCase()) || vl.startsWith(o.text.toLowerCase()))) {
+                el.value = o.value; matched = true;
+              }
+            });
           }
 
-          // Get all selects: [0]mentor [1]gender [2]wifi [3]province [4]grade [5]action
-          var selects   = tr.querySelectorAll('select');
-          // Get all text inputs: [0]firstName [1]surname [2]race [3]contact [4]email [5]school [6]career [7]status [8]sec_email [9]subjects [10]notes
+          // Helper: set mentor select — match by full name or first name
+          function selMentor(el, v) {
+            if (!el || !v) return;
+            var vs = String(v).trim();
+            var vl = vs.toLowerCase();
+            el.value = vs;
+            if (el.value === vs) return;
+            // Try first-name match against option text
+            Array.from(el.options).forEach(function(o){
+              var ol = o.text.toLowerCase();
+              if (ol === vl || ol.split(' ')[0] === vl || vl.split(' ')[0] === ol.split(' ')[0]) {
+                el.value = o.value;
+              }
+            });
+          }
+
+          // Use class-based selects for safety — each select has a known class or position
+          var mentorSel   = tr.querySelector('.mentor-col-select');
+          var allSelects  = Array.from(tr.querySelectorAll('select'));
+          // Remove mentor select from array to get remaining selects in order
+          var otherSels   = allSelects.filter(function(s){ return !s.classList.contains('mentor-col-select'); });
+          // otherSels order: [0]gender [1]wifi [2]province [3]grade [4]action
           var textInps  = Array.from(tr.querySelectorAll('input[type=text]'));
           var numInps   = Array.from(tr.querySelectorAll('input[type=number]'));
           var dateInps  = Array.from(tr.querySelectorAll('input[type=date]'));
 
-          // Set selects
-          var mentorVal = (_cu && _cu.role !== 'admin') ? _cu.name : (mentor || '');
-          sel(selects[0], mentorVal);
-          if (_cu && _cu.role !== 'admin' && selects[0]) {
-            selects[0].disabled = true;
-            selects[0].style.background = 'var(--green-light)';
-            selects[0].style.fontWeight = '700';
+          // Set mentor
+          if (_cu && _cu.role !== 'admin') {
+            selMentor(mentorSel, _cu.name);
+            if (mentorSel) { mentorSel.disabled = true; mentorSel.style.background = 'var(--green-light)'; mentorSel.style.fontWeight = '700'; }
+          } else {
+            selMentor(mentorSel, mentor);
           }
-          sel(selects[1], gender);
-          sel(selects[2], wifi);
-          sel(selects[3], province);
-          sel(selects[4], String(grade||''));
-          sel(selects[5], action||'Import');
+
+          // Set other selects
+          sel(otherSels[0], gender);
+          sel(otherSels[1], wifi);
+          sel(otherSels[2], province);
+          sel(otherSels[3], String(grade||''));
+          sel(otherSels[4], action||'Import');
 
           // Set text inputs
           if (textInps[0])  textInps[0].value  = firstName  || '';
