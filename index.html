@@ -8861,7 +8861,7 @@ function importPage() {
       <td><input type="date"></td>
       <td><select><option value="">—</option>${provOpts}</select></td>
       <td><input type="number" value="${new Date().getFullYear()}" style="width:72px"></td>
-      <td><select><option value="trainee">Trainee Mentor</option><option value="mentor">Lead Mentor</option><option value="admin">Programme Coordinator</option></select></td>
+      <td><select><option value="trainee">Trainee Mentor</option><option value="lead">Lead Mentor</option><option value="admin">Co-Ordinator & Lead Mentor</option></select></td>
       <td><input type="text" placeholder="Name1, Name2" style="min-width:140px"></td>
       <td><select><option value="">—</option>${mentorOpts}</select></td>
       <td><input type="password" placeholder="PIN" style="width:70px;letter-spacing:4px" maxlength="6"></td>
@@ -9074,7 +9074,7 @@ function addMrRow() {
     <td><input type="date"></td>
     <td><select><option value="">—</option>${provOpts}</select></td>
     <td><input type="number" value="${new Date().getFullYear()}" style="width:72px"></td>
-    <td><select><option value="trainee">Trainee Mentor</option><option value="mentor">Lead Mentor</option><option value="admin">Programme Coordinator</option></select></td>
+    <td><select><option value="trainee">Trainee Mentor</option><option value="lead">Lead Mentor</option><option value="admin">Co-Ordinator & Lead Mentor</option></select></td>
     <td><input type="text" placeholder="Name1, Name2" style="min-width:140px"></td>
     <td><select><option value="">—</option>${mentorOpts}</select></td>
     <td><input type="password" placeholder="PIN" style="width:70px;letter-spacing:4px" maxlength="6"></td>
@@ -10448,8 +10448,12 @@ async function testDrive() {
 
 // Build user row without nested template literals
 function buildUserRow(u) {
-  const roleClass = u.role==='admin' ? 'bo' : u.role==='trainee' ? 'bgr' : 'bg';
-  const roleLabel = u.role==='admin' ? '👑 Coordinator' : u.role==='trainee' ? '🌿 Trainee' : '🌱 Mentor';
+  const roleClass = u.role==='admin' ? 'bo' : u.group==='lead' ? 'bg' : 'bgr';
+  const roleLabel = u.role==='admin'
+    ? '👑 Co-Ordinator & Lead Mentor'
+    : u.group==='lead'
+      ? '🌱 Lead Mentor'
+      : '🌿 Trainee Mentor';
   const offboardedBadge = u.offboarded ? '<span class="badge br" style="margin-left:6px">Offboarded</span>' : '';
   const youLabel = S.currentUser && u.id === S.currentUser.id ? '<span style="font-size:11px;color:var(--light);margin-left:6px">(you)</span>' : '';
   const removeBtn = S.currentUser && u.id !== S.currentUser.id ? '<button class="btn btn-danger btn-sm" onclick="removeUser(\'' + u.id + '\')">✕</button>' : '';
