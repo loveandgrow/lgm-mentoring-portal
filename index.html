@@ -8536,10 +8536,21 @@ function hardResetAndResync() {
   jsonpFetch(CONFIG.apiUrl + '?action=getData')
     .then(res => {
       if (!res.ok) throw new Error(res.error || 'Sheets returned an error');
+      console.log('📊 getData from Sheets:', 'mentees:', (res.mentees||[]).length, 'sessions:', (res.sessions||[]).length, 'users:', (res.users||[]).length);
+      console.log('📋 First mentee from Sheets:', JSON.stringify((res.mentees||[])[0]));
       const sessions = Array.isArray(res.sessions) ? res.sessions : [];
       const mentees  = Array.isArray(res.mentees)  ? res.mentees  : [];
-      // Keep current users if Sheets has none (users aren't always in Sheets)
-      const users    = (Array.isArray(res.users) && res.users.length) ? res.users : (S.users || []);
+      // Keep current users (DEMO_USERS) if Sheets has none or fewer — never lose users
+      const users    = (Array.isArray(res.users) && res.users.length >= S.users.length)
+        ? res.users.map(function(u) {
+            // Merge with DEMO_USERS to restore pin/group/leadMentor which aren't in Sheets
+            var demo = DEMO_USERS.find(function(d){ return d.id === u.id || d.name === u.name; }) || {};
+            return Object.assign({}, demo, u);
+          })
+        : (S.users || []);
+      if (mentees.length === 0) {
+        throw new Error('Sheets returned 0 mentees — push data to Sheets first before doing a Full Reset');
+      }
 
       // ── CRITICAL: write clean state DIRECTLY to localStorage ──────────────
       // Do NOT use S or persistState() — S still holds stale in-memory data.
@@ -9100,8 +9111,27 @@ function sheetsPost(action, data) {
   var payload = { action: action, data: data };
   if (action === 'addMentee') {
     var d = data || {};
-    // Split name into first/surname if not already split
+
+    // Auto-fix scrambled records before sending:
+    // Pattern: race=userId, contact=mentorName, wifi=province (old storage format)
+    var rawRace = String(d.race || '');
+    if (/^u\d+$/.test(rawRace.trim())) {
+      d.mentorId   = d.mentorId   || rawRace;
+      d.mentorName = d.mentorName || String(d.contact || '');
+      d.province   = d.province   || String(d.wifi    || '');
+      d.race = ''; d.contact = ''; d.wifi = '';
+    }
+
+    // Fix blank firstName/surname
     var nameParts = (d.name || '').trim().split(' ');
+    var rawFn = String(d.firstName || '');
+    var rawSn = String(d.surname   || '');
+    // firstName is blank, or surname is a number (grade stored there)
+    if (!rawFn || /^\d+$/.test(rawSn.trim()) || rawSn.length > 20) {
+      d.firstName = nameParts[0] || '';
+      d.surname   = nameParts.slice(1).join(' ') || '';
+    }
+
     var firstName = d.firstName || d['Mentee Name']    || nameParts[0]              || '';
     var surname   = d.surname   || d['Mentee Surname'] || nameParts.slice(1).join(' ') || '';
     payload.data  = {
@@ -9179,7 +9209,31 @@ function processMenteeImport() {
           offDate=g('offDate')||'', notes=g('notes')||'';
     if (!name) { skip++; console.warn('SKIP row', i+1, '— name is blank. firstName:', JSON.stringify(firstName), 'surname:', JSON.stringify(surname)); return; }
     const existing = S.mentees.find(m=>m.name.toLowerCase()===name.toLowerCase());
-    if (existing && action==='Import') { console.warn('DUPLICATE', name, '— already exists in S.mentees'); }
+    if (existing && action==='Import') {
+      console.warn('DUPLICATE', name, '— already exists, switching to Update');
+      // Auto-switch to Update instead of skipping
+      const mu = resolveMentor(mentor);
+      if (school)    existing.school    = school;
+      if (grade)     existing.grade     = grade;
+      if (gender)    existing.gender    = gender;
+      if (race)      existing.race      = race;
+      if (contact)   existing.contact   = contact;
+      if (wifi)      existing.wifi      = wifi;
+      if (dob)       existing.dob       = dob;
+      if (email)     existing.email     = email;
+      if (province)  existing.province  = province;
+      if (career)    existing.career    = career;
+      if (status)    existing.status    = status;
+      if (sec_email) existing.sec_email = sec_email;
+      if (subjects)  existing.subjects  = subjects;
+      if (notes)     existing.notes     = notes;
+      if (firstName) existing.firstName = firstName;
+      if (surname)   existing.surname   = surname;
+      if (mu) { existing.mentorId = mu.id; existing.mentorName = mu.name; }
+      toSync.push(existing);
+      upd++;
+      return;
+    }
 
     // Resolve mentor by first trying exact full name, then first-name match
     function resolveMentor(mentorVal) {
