@@ -6822,16 +6822,20 @@ function backfillMentorIds() {
     var contact = String(m.contact || '');
     var fn      = String(m.firstName || '');
     var sn      = String(m.surname   || '');
+    console.log('BACKFILL CHECK', m.name, '| fn:', JSON.stringify(fn), '| sn:', JSON.stringify(sn), '| race:', JSON.stringify(race), '| contact:', JSON.stringify(contact), '| mentorId:', m.mentorId, '| mentorName:', m.mentorName);
     var raceIsId   = /^u\d+$/.test(race.trim());
     var fnIsBlank  = fn.trim() === '';
     var snIsNumber = /^\d+$/.test(sn.trim());
+    var snIsSchool = sn.length > 15; // school names are long
     if (raceIsId) {
+      console.log('  → FIXING scrambled fields for', m.name);
       m.mentorId   = m.mentorId   || race;
       m.mentorName = m.mentorName || contact;
       m.province   = m.province   || String(m.wifi || '');
       m.race = ''; m.contact = ''; m.wifi = '';
     }
-    if (fnIsBlank || snIsNumber) {
+    if (fnIsBlank || snIsNumber || snIsSchool) {
+      console.log('  → FIXING firstName/surname for', m.name, '(fnIsBlank:', fnIsBlank, 'snIsNumber:', snIsNumber, 'snIsSchool:', snIsSchool, ')');
       var parts = (m.name || '').trim().split(' ');
       m.firstName = parts[0] || '';
       m.surname   = parts.slice(1).join(' ') || '';
