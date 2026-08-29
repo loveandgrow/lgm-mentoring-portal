@@ -8591,7 +8591,7 @@ function hardResetAndResync() {
       if (status) { status.innerHTML = msg; status.style.color = 'var(--green-dark)'; }
 
       // Hard reload — bypasses any browser cache
-      setTimeout(function() { location.href = location.href.split('?')[0] + '?reset=' + Date.now(); }, 1200);
+      setTimeout(function() { location.href = location.href.split('?')[0] + '?nocache=' + Date.now(); }, 1200);
     })
     .catch(err => {
       // If fetch is blocked entirely (mobile Safari), offer direct localStorage wipe
@@ -10593,7 +10593,7 @@ window.addEventListener('DOMContentLoaded', () => {
   try { localStorage.setItem('lgm_app_version', _appVersion); } catch(e) {}
 
   // If ?reset=1 in URL — wipe localStorage and reload clean
-  if (location.search.indexOf('reset=1') !== -1) {
+  if (new URLSearchParams(location.search).get('reset') === '1') {
     try { localStorage.removeItem('lgm_2026_state'); } catch(e) {}
     history.replaceState(null, '', location.pathname);
     location.reload();
