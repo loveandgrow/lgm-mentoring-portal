@@ -8677,6 +8677,9 @@ function resyncFromSheets() {
       if (res.error) throw new Error(res.error);
       const sessions = Array.isArray(res.sessions) ? res.sessions : [];
       const mentees  = Array.isArray(res.mentees)  ? res.mentees  : [];
+      if (mentees.length === 0 && S.mentees.length > 0) {
+        throw new Error('Sheets returned 0 mentees, but this device has ' + S.mentees.length + ' locally — refusing to overwrite. Check the Mentees sheet before retrying.');
+      }
       S.sessions = sessions;
       S.mentees  = mentees;
       persistState();
