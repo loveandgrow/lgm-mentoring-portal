@@ -8544,7 +8544,8 @@ function hardResetAndResync() {
 
   jsonpFetch(CONFIG.apiUrl + '?action=getData')
     .then(res => {
-      if (!res.ok) throw new Error(res.error || 'Sheets returned an error');
+      if (!res || typeof res !== 'object') throw new Error('Sheets returned an error');
+      if (res.error) throw new Error(res.error);
       console.log('📊 getData from Sheets:', 'mentees:', (res.mentees||[]).length, 'sessions:', (res.sessions||[]).length, 'users:', (res.users||[]).length);
       console.log('📋 First mentee from Sheets:', JSON.stringify((res.mentees||[])[0]));
       const sessions = Array.isArray(res.sessions) ? res.sessions : [];
@@ -8672,7 +8673,8 @@ function resyncFromSheets() {
   // Use JSONP — works on all browsers including mobile Safari without CORS issues
   jsonpFetch(CONFIG.apiUrl + '?action=getData')
     .then(res => {
-      if (!res.ok) throw new Error(res.error || 'Sheets returned an error');
+      if (!res || typeof res !== 'object') throw new Error('Sheets returned an error');
+      if (res.error) throw new Error(res.error);
       const sessions = Array.isArray(res.sessions) ? res.sessions : [];
       const mentees  = Array.isArray(res.mentees)  ? res.mentees  : [];
       S.sessions = sessions;
