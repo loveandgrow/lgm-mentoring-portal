@@ -7594,7 +7594,7 @@ function capturePage() {
   </div>
 
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:.5rem">
-    <button class="btn btn-primary" onclick="submitSession()">💾 Save Session</button>
+    <button class="btn btn-primary" onclick="this.disabled=true;submitSession();setTimeout(()=>this.disabled=false,2500)">💾 Save Session</button>
     <button class="btn btn-gold" onclick="submitAndExport()">📥 Save & Export Excel</button>
     <button class="btn btn-ghost" onclick="navigate('capture')">🗑️ Clear</button>
   </div>`;
@@ -7962,7 +7962,16 @@ function setSyncStatus(state, msg) {
 // ─────────────────────────────────────────────────────────────
 // SAVE SESSION
 // ─────────────────────────────────────────────────────────────
+let sessionSubmitLock = false;
+
 function submitSession() {
+  if (sessionSubmitLock) {
+    toast('⏳ Already saving this session — please wait a moment.');
+    return null;
+  }
+  sessionSubmitLock = true;
+  setTimeout(function(){ sessionSubmitLock = false; }, 2500);
+
   const menteeEl = document.getElementById('f-mentee');
   const menteeId = menteeEl?.value;
   const grade    = document.getElementById('f-grade')?.value;
@@ -8826,7 +8835,7 @@ function logAudit(action, recordType, name, fieldChanged, prevValue, newValue, n
 // IMPORT PAGE — bulk import, reassign, promote, offboard
 // ═══════════════════════════════════════════════════════════════
 function importPage() {
-  const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
+  const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
   const provOpts  = provinces.map(p => `<option>${p}</option>`).join('');
   const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
@@ -9077,7 +9086,7 @@ function switchImportTab(id, btn) {
 }
 
 function addMrRow() {
-  const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
+  const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
   const provOpts  = provinces.map(p => `<option>${p}</option>`).join('');
   const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
@@ -9112,25 +9121,46 @@ function sheetsPost(action, data) {
   if (action === 'addMentee') {
     var d = data || {};
 
-    // Auto-fix scrambled records before sending:
-    // Pattern: race=userId, contact=mentorName, wifi=province (old storage format)
-    var rawRace = String(d.race || '');
-    if (/^u\d+$/.test(rawRace.trim())) {
-      d.mentorId   = d.mentorId   || rawRace;
-      d.mentorName = d.mentorName || String(d.contact || '');
-      d.province   = d.province   || String(d.wifi    || '');
-      d.race = ''; d.contact = ''; d.wifi = '';
+    // Detect scrambled record: old format stored mentorId in race, mentorName in contact, province in wifi
+    var rawRace    = String(d.race    || '').trim();
+    var rawContact = String(d.contact || '').trim();
+    var rawWifi    = String(d.wifi    || '').trim();
+    var rawFn      = String(d.firstName || '').trim();
+    var rawSn      = String(d.surname   || '').trim();
+
+    var isScrambled = /^u\d+$/.test(rawRace)           // race has userId
+      || (!rawFn && /^\d+$/.test(rawSn))               // firstName blank, surname is number
+      || (!rawFn && rawSn.length > 15)                 // firstName blank, surname is school name
+      || (rawContact.length < 5 && rawContact !== ''); // contact too short to be a phone
+
+    if (isScrambled) {
+      // Reconstruct: pull real values from S.mentees if available
+      var stored = (typeof S !== 'undefined' && S.mentees)
+        ? S.mentees.find(function(m){ return m.id === d.id || m.name === d.name; })
+        : null;
+
+      if (stored) {
+        // Use stored record which may have been fixed by sanitiser
+        d = Object.assign({}, stored);
+      } else {
+        // Manual reconstruction from scrambled fields
+        d.mentorId   = /^u\d+$/.test(rawRace) ? rawRace : (d.mentorId || '');
+        d.mentorName = rawContact.length < 20  ? rawContact : (d.mentorName || '');
+        d.province   = rawWifi;
+        d.race    = '';
+        d.contact = '';
+        d.wifi    = '';
+      }
+      // Always fix firstName/surname from name
+      var np = (d.name || '').trim().split(' ');
+      d.firstName = np[0] || '';
+      d.surname   = np.slice(1).join(' ') || '';
     }
 
-    // Fix blank firstName/surname
+    // Final name parts
     var nameParts = (d.name || '').trim().split(' ');
-    var rawFn = String(d.firstName || '');
-    var rawSn = String(d.surname   || '');
-    // firstName is blank, or surname is a number (grade stored there)
-    if (!rawFn || /^\d+$/.test(rawSn.trim()) || rawSn.length > 20) {
-      d.firstName = nameParts[0] || '';
-      d.surname   = nameParts.slice(1).join(' ') || '';
-    }
+    if (!d.firstName) d.firstName = nameParts[0] || '';
+    if (!d.surname)   d.surname   = nameParts.slice(1).join(' ') || '';
 
     var firstName = d.firstName || d['Mentee Name']    || nameParts[0]              || '';
     var surname   = d.surname   || d['Mentee Surname'] || nameParts.slice(1).join(' ') || '';
@@ -9648,7 +9678,7 @@ function addMenteeRow() {
   div.innerHTML = mRow ? mRow() : '';
   const tr = div.querySelector('tr') || (function(){
     // mRow is defined inside importPage scope — re-generate a row
-    const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
+    const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
     const provOpts  = provinces.map(p => '<option value="'+p+'">'+p+'</option>').join('');
     const mentorOpts= S.users.filter(function(u){return !u.offboarded;}).map(function(u){return '<option value="'+u.name+'">'+u.name+'</option>';}).join('');
     const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
@@ -9823,7 +9853,7 @@ function handleExcelUpload(inputEl, type) {
         if (!tbody) { toast('⚠️ Please go to the Import Mentees tab first'); return; }
         tbody.innerHTML = ''; // clear existing rows
 
-        const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
+        const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
         const provOpts  = provinces.map(p => `<option value="${p}">${p}</option>`).join('');
         const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
@@ -9992,7 +10022,7 @@ function handleExcelUpload(inputEl, type) {
         if (!tbody) { toast('⚠️ Please go to the Import Mentors tab first'); return; }
         tbody.innerHTML = '';
 
-        const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
+        const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
         const provOpts  = provinces.map(p=>`<option value="${p}">${p}</option>`).join('');
         const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
