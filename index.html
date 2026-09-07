@@ -10162,32 +10162,36 @@ async function uploadViaSScript(session, files) {
         || 'Unknown Mentor';
 
       const payload = JSON.stringify({
-        action:     'uploadFile',
-        folderId:   CONFIG.driveFolderId || '',
-        mentorName: mentorNameForUpload,
-        menteeName: session.menteeName   || 'Unknown',
-        month:      session.month        || 'Unknown',
-        year:       CONFIG.year          || String(new Date().getFullYear()),
-        fileName:   file.name,
-        mimeType:   file.type            || 'application/octet-stream',
-        base64Data: base64,
+        action: 'uploadFile',
+        data: {
+          folderId:   CONFIG.driveFolderId || '',
+          mentorName: mentorNameForUpload,
+          menteeName: session.menteeName   || 'Unknown',
+          month:      session.month        || 'Unknown',
+          year:       CONFIG.year          || String(new Date().getFullYear()),
+          fileName:   file.name,
+          mimeType:   file.type            || 'application/octet-stream',
+          base64Data: base64,
+        },
       });
 
-      // Use no-cors - POST always works, response is opaque but data saves
-      await fetch(CONFIG.apiUrl, {
+      // Real (non-opaque) request — text/plain avoids a CORS preflight, and
+      // Apps Script deployed with "Anyone" access returns permissive CORS
+      // headers on the actual response, so this can be read normally.
+      const uploadRes  = await fetch(CONFIG.apiUrl, {
         method:  'POST',
-        mode:    'no-cors',
         headers: { 'Content-Type': 'text/plain' },
         body:    payload,
       });
+      const uploadJson = await uploadRes.json();
+      if (uploadJson.status !== 'ok') {
+        throw new Error(uploadJson.message || 'Apps Script reported an error');
+      }
 
-      // Since no-cors gives opaque response, we assume success
-      // Build expected Drive URL pattern for the session record
-      const safeName = (session.menteeName || 'Unknown').replace(/[^a-zA-Z0-9 _-]/g, '').trim();
-      const folderPath = safeName + '/' + session.month + ' ' + (CONFIG.year || '2026');
-      uploadedUrls.push('Uploaded to Drive: ' + folderPath + '/' + file.name);
+      const realUrl = uploadJson.fileUrl || '';
+      uploadedUrls.push(realUrl || ('Uploaded: ' + file.name));
       uploaded++;
-      toast('✅ ' + file.name + ' uploading to Drive…');
+      toast('✅ ' + file.name + ' uploaded to Drive');
 
     } catch(err) {
       console.error('Upload error for', file.name, err);
@@ -10581,7 +10585,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608301600';
+  var _appVersion = '202608301900';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
