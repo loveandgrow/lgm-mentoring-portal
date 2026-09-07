@@ -10585,7 +10585,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608301900';
+  var _appVersion = '202608302000';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -10898,11 +10898,13 @@ async function evLibUpload() {
         };
         const res = await fetch(CONFIG.apiUrl, { method: 'POST', body: JSON.stringify(payload) });
         const json = await res.json();
-        if (json.ok && json.data?.fileUrl) {
+        if (json.status === 'ok' && json.fileUrl) {
           session.driveFileUrls = session.driveFileUrls
-            ? session.driveFileUrls + ',' + json.data.fileUrl
-            : json.data.fileUrl;
-          if (!session.evidenceFolderUrl) session.evidenceFolderUrl = json.data.fileUrl;
+            ? session.driveFileUrls + ',' + json.fileUrl
+            : json.fileUrl;
+          if (!session.evidenceFolderUrl) session.evidenceFolderUrl = json.fileUrl;
+        } else {
+          throw new Error(json.message || 'Apps Script did not confirm the upload');
         }
       }
     } catch(err) {
