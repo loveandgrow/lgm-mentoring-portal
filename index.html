@@ -7716,7 +7716,7 @@ function onMenteeChange() {
   }
   // Priority 2: most recent session for this mentee that has a Drive link
   const sessions = S.sessions
-    .filter(s => s.menteeId === menteeId && s.evidenceFolderUrl && s.evidenceFolderUrl.startsWith('http'))
+    .filter(s => s.menteeId === menteeId && isHttpUrl(s.evidenceFolderUrl))
     .sort((a, b) => (b.date||'').localeCompare(a.date||''));
   if (sessions.length) {
     driveEl.value = sessions[0].evidenceFolderUrl;
@@ -8016,7 +8016,7 @@ function submitSession() {
   S.sessions.push(session);
 
   // Persist Drive link back to the mentee record so it auto-fills next time
-  if (session.evidenceFolderUrl && session.evidenceFolderUrl.startsWith('http')) {
+  if (isHttpUrl(session.evidenceFolderUrl)) {
     const mentee = S.mentees.find(m => m.id === session.menteeId);
     if (mentee) mentee.driveFolderUrl = session.evidenceFolderUrl;
   }
@@ -8806,6 +8806,13 @@ function buildExport(sessions, filename) {
 // ─────────────────────────────────────────────────────────────
 function initials(name) {
   return (name||'?').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+}
+
+// Sheets can return a cell as a number, date, or other non-string type —
+// calling .startsWith directly on a session's evidenceFolderUrl has crashed
+// the whole page render when that happened. Always route through this.
+function isHttpUrl(v) {
+  return typeof v === 'string' && v.startsWith('http');
 }
 
 function toast(msg) {
@@ -10165,6 +10172,7 @@ async function uploadViaSScript(session, files) {
         action: 'uploadFile',
         data: {
           folderId:   CONFIG.driveFolderId || '',
+          sessionId:  session.id            || '',
           mentorName: mentorNameForUpload,
           menteeName: session.menteeName   || 'Unknown',
           month:      session.month        || 'Unknown',
@@ -10175,23 +10183,22 @@ async function uploadViaSScript(session, files) {
         },
       });
 
-      // Real (non-opaque) request — text/plain avoids a CORS preflight, and
-      // Apps Script deployed with "Anyone" access returns permissive CORS
-      // headers on the actual response, so this can be read normally.
-      const uploadRes  = await fetch(CONFIG.apiUrl, {
+      // Fire-and-forget via no-cors — matches every other write in this app
+      // (addSession, addMentee, addUser). Apps Script Web Apps don't reliably
+      // expose CORS headers on POST responses, so a "real" fetch here was
+      // silently failing to even reach the server. The actual Drive URL gets
+      // written straight into this session's row by saveFile() server-side;
+      // Pull Sheets → Local (or the next natural resync) will pick it up.
+      await fetch(CONFIG.apiUrl, {
         method:  'POST',
+        mode:    'no-cors',
         headers: { 'Content-Type': 'text/plain' },
         body:    payload,
       });
-      const uploadJson = await uploadRes.json();
-      if (uploadJson.status !== 'ok') {
-        throw new Error(uploadJson.message || 'Apps Script reported an error');
-      }
 
-      const realUrl = uploadJson.fileUrl || '';
-      uploadedUrls.push(realUrl || ('Uploaded: ' + file.name));
+      uploadedUrls.push('Sent to Drive: ' + file.name);
       uploaded++;
-      toast('✅ ' + file.name + ' uploaded to Drive');
+      toast('📤 ' + file.name + ' sent to Drive — resync in a few seconds to confirm');
 
     } catch(err) {
       console.error('Upload error for', file.name, err);
@@ -10200,16 +10207,8 @@ async function uploadViaSScript(session, files) {
   }
 
   if (uploaded > 0) {
-    // Update session with evidence note
-    const rec = S.sessions.find(s => s.id === session.id);
-    if (rec && !rec.evidenceFolderUrl) {
-      rec.evidenceFolderUrl = uploadedUrls[0] || 'Uploaded to Drive';
-      persistState();
-      // Sync updated session to Sheets
-      if (CONFIG.apiUrl !== 'DEMO') pushToSheets(rec);
-    }
-    setSyncStatus('ok', uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive ✓');
-    toast('✅ ' + uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' uploaded to Google Drive!');
+    setSyncStatus('ok', uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive');
+    toast('📤 ' + uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive — Pull Sheets → Local in a few seconds to see the confirmed link');
   }
 }
 
@@ -10585,7 +10584,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202608302000';
+  var _appVersion = '202609291000';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -10794,7 +10793,7 @@ function evLibMenteeChange() {
   const mentee = S.mentees.find(m => m.id === menteeId);
   if (mentee && mentee.driveFolderUrl) { driveEl.value = mentee.driveFolderUrl; return; }
   const last = S.sessions
-    .filter(s => s.menteeId === menteeId && s.evidenceFolderUrl && s.evidenceFolderUrl.startsWith('http'))
+    .filter(s => s.menteeId === menteeId && isHttpUrl(s.evidenceFolderUrl))
     .sort((a,b) => (b.date||'').localeCompare(a.date||''));
   if (last.length) driveEl.value = last[0].evidenceFolderUrl;
 }
@@ -10878,6 +10877,10 @@ async function evLibUpload() {
     if (desc) session.evidenceDesc = desc;
   }
 
+  // Make sure this session's row exists in Sheets before the upload tries to
+  // write a URL into it by id
+  if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') pushToSheets(session);
+
   // Upload files to Drive if configured
   if (files.length && CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
     try {
@@ -10887,6 +10890,7 @@ async function evLibUpload() {
           action: 'uploadFile',
           data: {
             folderId: CONFIG.driveFolderId,
+            sessionId: session.id,
             fileName: file.name,
             mimeType: file.type || 'application/octet-stream',
             base64Data: b64,
@@ -10896,17 +10900,20 @@ async function evLibUpload() {
             year: CONFIG.year,
           }
         };
-        const res = await fetch(CONFIG.apiUrl, { method: 'POST', body: JSON.stringify(payload) });
-        const json = await res.json();
-        if (json.status === 'ok' && json.fileUrl) {
-          session.driveFileUrls = session.driveFileUrls
-            ? session.driveFileUrls + ',' + json.fileUrl
-            : json.fileUrl;
-          if (!session.evidenceFolderUrl) session.evidenceFolderUrl = json.fileUrl;
-        } else {
-          throw new Error(json.message || 'Apps Script did not confirm the upload');
-        }
+        // Fire-and-forget via no-cors — matches every other write in this
+        // app. The real Drive URL gets written straight into this session's
+        // row by saveFile() server-side; it'll show up on next resync.
+        await fetch(CONFIG.apiUrl, {
+          method:  'POST',
+          mode:    'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body:    JSON.stringify(payload),
+        });
+        session.driveFileUrls = session.driveFileUrls
+          ? session.driveFileUrls + ',sent:' + file.name
+          : 'sent:' + file.name;
       }
+      if (status) { status.textContent = '📤 Sent to Drive — resync in a few seconds to confirm'; status.style.color = 'var(--mid)'; }
     } catch(err) {
       if (status) { status.textContent = '⚠️ Files saved locally but Drive upload failed: ' + err.message; status.style.color = 'var(--gold)'; }
     }
@@ -10921,8 +10928,9 @@ async function evLibUpload() {
   persistState();
   S.pendingEvidenceFiles = [];
 
-  if (status) { status.textContent = '✅ Evidence saved!'; status.style.color = 'var(--green-dark)'; }
-  toast('✅ Evidence saved!');
+  const fileNote = files.length ? ' File(s) sent to Drive — resync shortly to confirm.' : '';
+  if (status) { status.textContent = '✅ Evidence saved!' + fileNote; status.style.color = 'var(--green-dark)'; }
+  toast('✅ Evidence saved!' + fileNote);
 
   // Refresh the page
   setTimeout(() => navigate('evidence-lib'), 600);
@@ -10953,13 +10961,15 @@ function renderEvidenceCards(byMentee, keys) {
             <td>${s.sessionTypes||'—'}</td>
             <td style="font-size:12px;color:var(--light);max-width:200px">${s.evidenceDesc||'—'}</td>
             <td>
-              ${s.evidenceFolderUrl && s.evidenceFolderUrl.startsWith('http')
-                ? `<a href="${s.evidenceFolderUrl}" target="_blank" class="btn btn-outline btn-sm">📁 Open in Drive</a>`
-                : s.evidenceFolderUrl
-                  ? `<span class="badge bgr" style="font-size:11px">${s.evidenceFolderUrl.substring(0,40)}…</span>`
-                  : '—'
-              }
-              ${s.driveFileUrls ? s.driveFileUrls.split(',').map(u => u.trim()).filter(u=>u.startsWith('http')).map(u =>
+              ${(() => {
+                const evUrl = s.evidenceFolderUrl != null ? String(s.evidenceFolderUrl) : '';
+                return isHttpUrl(evUrl)
+                  ? `<a href="${evUrl}" target="_blank" class="btn btn-outline btn-sm">📁 Open in Drive</a>`
+                  : evUrl
+                    ? `<span class="badge bgr" style="font-size:11px">${evUrl.substring(0,40)}…</span>`
+                    : '—';
+              })()}
+              ${s.driveFileUrls ? String(s.driveFileUrls).split(',').map(u => u.trim()).filter(isHttpUrl).map(u =>
                 `<a href="${u}" target="_blank" class="btn btn-outline btn-sm" style="margin-left:4px">📄 File</a>`
               ).join('') : ''}
             </td>
