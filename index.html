@@ -8024,7 +8024,7 @@ function submitSession() {
   persistState();
   setSyncStatus('syncing','Syncing…');
   setTimeout(function(){ setSyncStatus('ok','Saved ✓'); }, 2000);
-  toast('✅ Session saved!');
+  toast('✅ Session saved! Taking you back to your mentees…');
   // Background refresh 5 seconds after save to pick up any remote changes
   setTimeout(silentSyncOnLogin, 5000);
 
@@ -8053,6 +8053,11 @@ function submitSession() {
 
   S.pendingFiles = [];
   document.getElementById('files-list') && (document.getElementById('files-list').innerHTML = '');
+
+  // Take the mentor straight back to their mentee list — staying on the
+  // capture form with no visible next step was the actual reported problem,
+  // not just a documentation gap.
+  setTimeout(function(){ navigate(isFullAdmin() ? 'all-mentees' : 'my-mentees'); }, 1200);
 
   return session;
 }
@@ -10584,7 +10589,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202609291000';
+  var _appVersion = '202609291200';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
