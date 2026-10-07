@@ -142,6 +142,9 @@ tbody tr:hover td{background:var(--green-light)}
 .m-tile .mn{font-weight:900;font-size:13px}
 .m-tile .mt{font-size:10px;color:var(--light);margin-top:2px;line-height:1.3}
 .m-tile .mb{margin-top:6px}
+/* Academic Progress mark boxes: on desktop browsers the number spinner reserved room and clipped two-digit marks to one digit */
+#subj-tbody input[type=number]{padding-left:6px;padding-right:6px;-moz-appearance:textfield}
+#subj-tbody input[type=number]::-webkit-inner-spin-button,#subj-tbody input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .check-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--soft)}
 .check-item:last-child{border-bottom:none}
 .chkbox{width:20px;height:20px;border:2px solid var(--green-mid);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px}
@@ -213,8 +216,8 @@ tbody tr:hover td{background:var(--green-light)}
   .months-grid{grid-template-columns:repeat(2,1fr)}
   .stat-val{font-size:24px}
   .btn{padding:9px 16px;font-size:12px}
-  .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;gap:0}
-  .tab{white-space:nowrap;padding:8px 14px;font-size:12px;flex-shrink:0}
+  .tabs{overflow-x:visible;flex-wrap:nowrap;gap:0}
+  .tab{flex:1 1 0;min-width:0;white-space:normal;text-align:center;line-height:1.25;padding:8px 4px;font-size:12px}
   .wb-row{gap:5px}
   .wb-btn{padding:7px 10px;font-size:12px}
   .topbar{padding:0 .6rem;gap:.4rem}
@@ -1814,7 +1817,6 @@ b8lobw34VHra4E87yU8gLCKEfdWp/qra9SyDUzGnhh/85v/Z" alt="Love and Grow Mentorship"
       <div style="flex:1;height:1px;background:var(--border)"></div>
     </div>
     <button class="btn btn-ghost btn-full" style="margin-top:.8rem;font-size:12px" onclick="goToAdminPin()">&#128081; Sign in as Coordinator</button>
-    <div id="debug-users" style="margin-top:.4rem;text-align:center"></div>
     <div id="missing-user-hint" style="display:none;margin-top:.6rem;background:#fef6e8;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;text-align:left">
       &#9888;&#65039; No mentors found on this device. Ask your Coordinator to log in and use <strong>Admin Panel &#8594; Data Management &#8594; &#8679; Push Local &#8594; Sheets</strong>, then reload this page.
     </div>
@@ -6968,15 +6970,6 @@ function buildMentorSelectList() {
     hintEl.style.display = mentors.length === 0 ? 'block' : 'none';
   }
 
-  // DEBUG: show what users are loaded — remove after testing
-  const dbg = document.getElementById('debug-users');
-  if (dbg) {
-    dbg.innerHTML = '<small style="color:#666;font-size:10px">'
-      + 'Users in memory: ' + S.users.length + ' | '
-      + 'Mentors: ' + mentors.length + ' | '
-      + S.users.map(function(u){ return u.name + '(' + u.role + ')'; }).join(', ')
-      + '</small>';
-  }
 }
 
 function onDropdownChange() {
@@ -7593,10 +7586,12 @@ function capturePage() {
     </div>
   </div>
 
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:.5rem">
-    <button class="btn btn-primary" onclick="this.disabled=true;submitSession();setTimeout(()=>this.disabled=false,2500)">💾 Save Session</button>
-    <button class="btn btn-gold" onclick="submitAndExport()">📥 Save & Export Excel</button>
-    <button class="btn btn-ghost" onclick="navigate('capture')">🗑️ Clear</button>
+  <div style="margin-top:.5rem">
+    <button class="btn btn-primary btn-full" onclick="this.disabled=true;submitSession();setTimeout(()=>this.disabled=false,2500)">💾 Save Session</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:1.5rem;padding-top:1rem;border-top:1px dashed var(--border)">
+      <button class="btn btn-outline btn-sm" onclick="submitAndExport()">📥 Save &amp; Export Excel</button>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('capture')">🗑️ Clear</button>
+    </div>
   </div>`;
 }
 
@@ -8005,8 +8000,10 @@ function submitSession() {
     wellbeing:       S.selectedWellbeing,
     engagementRating:document.getElementById('stars-eng')?.dataset.val||'0',
     qualityRating:   document.getElementById('stars-qual')?.dataset.val||'0',
-    goalShort:       document.getElementById('f-goal-short')?.value||'',
-    goalLong:        document.getElementById('f-goal-long')?.value||'',
+    // The goal inputs live on the Academic Progress tab (ac-goal-*). This used to read
+    // f-goal-* — elements that don't exist — so every session saved with blank goals.
+    goalShort:       (document.getElementById('ac-goal-short') || document.getElementById('f-goal-short'))?.value||'',
+    goalLong:        (document.getElementById('ac-goal-long')  || document.getElementById('f-goal-long'))?.value||'',
     year:             CONFIG.year,
     evidenceFolderUrl:document.getElementById('f-drive-link')?.value||'',
     evidenceDesc:    document.getElementById('f-evid-desc')?.value||'',
@@ -8123,7 +8120,7 @@ function myMenteesPage() {
           <td><span class="badge bo">${cnt} session${cnt!==1?'s':''}</span></td>
           <td style="display:flex;gap:6px">
             <button class="btn btn-outline btn-sm" onclick="captureFor('${m.id}')">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="removeMentee('${m.id}')">✕</button>
+            ${isFullAdmin() ? `<button class="btn btn-danger btn-sm" onclick="removeMentee('${m.id}')">✕</button>` : ''}
           </td></tr>`;
       }).join('')}</tbody>
     </table></div>` : `<div class="empty"><div class="ei">👥</div><h3>No mentees yet</h3><p>Add your first mentee above.</p></div>`}
@@ -8236,7 +8233,7 @@ function allMenteesPage() {
 function progressPage() {
   const isAdmin = isFullAdmin();
   return `
-  <div class="page-header green"><h1>📈 Progress Tracker</h1><p>${isAdmin?'Programme-wide progress across all mentors.':'Your mentees\' progress through the ${CONFIG.year} programme.'}</p></div>
+  <div class="page-header green"><h1>📈 Progress Tracker</h1><p>${isAdmin?'Programme-wide progress across all mentors.':'Your mentees\' progress through the ' + CONFIG.year + ' programme.'}</p></div>
   <div class="card" style="margin-bottom:1rem">
     <div class="fg" style="max-width:520px">
       <div class="fgrp"><label>Mentee</label>
@@ -8818,6 +8815,15 @@ function initials(name) {
 // the whole page render when that happened. Always route through this.
 function isHttpUrl(v) {
   return typeof v === 'string' && v.startsWith('http');
+}
+
+// Only Co-Ordinators have Admin Panel → Pull Sheets → Local, so the "how do I
+// confirm it arrived" wording has to depend on who is looking at it. Telling a
+// mentor to use a button they can't see just leaves them stuck.
+function evidenceSentHint() {
+  return isFullAdmin()
+    ? 'Pull Sheets → Local (Admin Panel) will show the confirmed link.'
+    : 'your Co-Ordinator can confirm in the Drive folder.';
 }
 
 function toast(msg) {
@@ -10203,7 +10209,7 @@ async function uploadViaSScript(session, files) {
 
       uploadedUrls.push('Sent to Drive: ' + file.name);
       uploaded++;
-      toast('📤 ' + file.name + ' sent to Drive — resync in a few seconds to confirm');
+      toast('📤 ' + file.name + ' sent to Drive');
 
     } catch(err) {
       console.error('Upload error for', file.name, err);
@@ -10213,7 +10219,7 @@ async function uploadViaSScript(session, files) {
 
   if (uploaded > 0) {
     setSyncStatus('ok', uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive');
-    toast('📤 ' + uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive — Pull Sheets → Local in a few seconds to see the confirmed link');
+    toast('📤 ' + uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive — ' + evidenceSentHint());
   }
 }
 
@@ -10589,7 +10595,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202609291200';
+  var _appVersion = '202610071000';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -10918,7 +10924,7 @@ async function evLibUpload() {
           ? session.driveFileUrls + ',sent:' + file.name
           : 'sent:' + file.name;
       }
-      if (status) { status.textContent = '📤 Sent to Drive — resync in a few seconds to confirm'; status.style.color = 'var(--mid)'; }
+      if (status) { status.textContent = '📤 Sent to Drive — ' + evidenceSentHint(); status.style.color = 'var(--mid)'; }
     } catch(err) {
       if (status) { status.textContent = '⚠️ Files saved locally but Drive upload failed: ' + err.message; status.style.color = 'var(--gold)'; }
     }
@@ -10933,7 +10939,7 @@ async function evLibUpload() {
   persistState();
   S.pendingEvidenceFiles = [];
 
-  const fileNote = files.length ? ' File(s) sent to Drive — resync shortly to confirm.' : '';
+  const fileNote = files.length ? ' File(s) sent to Drive — ' + evidenceSentHint() : '';
   if (status) { status.textContent = '✅ Evidence saved!' + fileNote; status.style.color = 'var(--green-dark)'; }
   toast('✅ Evidence saved!' + fileNote);
 
