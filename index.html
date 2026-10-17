@@ -6900,7 +6900,16 @@ function scopedMentees() {
   return S.mentees.filter(function(m){ return m.mentorId === u.id && !m.offboarded; });
 }
 
-function scopedSessions() {
+// Evidence-only records: the Evidence Library creates one (type "Evidence Upload") when evidence is filed
+// for a mentee + month that has no session yet. They hold evidence — they are NOT sessions, so they must
+// not count as one in totals, tiles, lists, exports or reminders.
+function isEvidenceOnly(s) { return String((s && s.sessionTypes) || '').trim() === 'Evidence Upload'; }
+function realSessions() { return S.sessions.filter(function(s){ return !isEvidenceOnly(s); }); }
+// A pasted folder link — as opposed to the link to one uploaded FILE that the script writes after an upload.
+function isFolderLink(v) { return isHttpUrl(v) && String(v).indexOf('/file/d/') === -1; }
+
+// Everything this person may see: real sessions AND evidence-only records (Evidence Library, evidence counts).
+function scopedEvidenceRecords() {
   const u = currentUser();
   if (!u) return [];
   if (u.role === 'admin' && u.group === 'lead') {
@@ -6911,6 +6920,10 @@ function scopedSessions() {
   }
   if (u.role === 'admin') return S.sessions;
   return S.sessions.filter(function(s){ return s.mentorId === u.id; });
+}
+// The sessions this person may see — evidence-only records excluded.
+function scopedSessions() {
+  return scopedEvidenceRecords().filter(function(s){ return !isEvidenceOnly(s); });
 }
 
 function isFullAdmin() {
@@ -7221,7 +7234,7 @@ function mentorDashboard() {
   const mySessions = scopedSessions();
   const thisMonth  = MONTHS[new Date().getMonth()];
   const doneThis   = mySessions.filter(s => s.month === thisMonth).length;
-  const withEvid   = mySessions.filter(s => s.evidenceFolderUrl).length;
+  const withEvid   = scopedEvidenceRecords().filter(s => s.evidenceFolderUrl).length;
 
   return `
   <div class="page-header green">
@@ -7296,14 +7309,14 @@ function adminDashboard() {
   const gradeStats = ['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>({
     grade:g,
     mentees: S.mentees.filter(m=>m.grade===g).length,
-    sessions: S.sessions.filter(s=>s.grade===g).length,
+    sessions: realSessions().filter(s=>s.grade===g).length,
   }));
 
   const mentorStats = allMentors.map(u=>({
     name:u.name,
     mentees:  S.mentees.filter(m=>m.mentorId===u.id || (!m.mentorId && m.mentorName && (m.mentorName===u.name||m.mentorName.split(' ')[0]===u.name.split(' ')[0]))).length,
-    sessions: S.sessions.filter(s=>s.mentorId===u.id).length,
-    thisMonth:S.sessions.filter(s=>s.mentorId===u.id&&s.month===thisMonth).length,
+    sessions: realSessions().filter(s=>s.mentorId===u.id).length,
+    thisMonth:realSessions().filter(s=>s.mentorId===u.id&&s.month===thisMonth).length,
   }));
 
   return `
@@ -7317,7 +7330,7 @@ function adminDashboard() {
   <div class="stats-grid">
     <div class="stat g"><div class="stat-lbl">Mentors</div><div class="stat-val">${allMentors.length}</div><div class="stat-sub">Active</div></div>
     <div class="stat o"><div class="stat-lbl">Mentees</div><div class="stat-val">${S.mentees.length}</div><div class="stat-sub">Registered</div></div>
-    <div class="stat t"><div class="stat-lbl">Sessions</div><div class="stat-val">${S.sessions.length}</div><div class="stat-sub">${S.sessions.filter(s=>s.month===thisMonth).length} in ${thisMonth}</div></div>
+    <div class="stat t"><div class="stat-lbl">Sessions</div><div class="stat-val">${realSessions().length}</div><div class="stat-sub">${realSessions().filter(s=>s.month===thisMonth).length} in ${thisMonth}</div></div>
     <div class="stat p"><div class="stat-lbl">Evidence Filed</div><div class="stat-val">${withEvid}</div><div class="stat-sub">With links</div></div>
   </div>
   <div class="g2">
@@ -7358,7 +7371,7 @@ function adminDashboard() {
         <button class="btn btn-gold btn-sm" onclick="exportAllData()">⬇️ Export All</button>
       </div>
     </div>
-    ${sessionsTable(S.sessions.slice(-8).reverse(), true)}
+    ${sessionsTable(realSessions().slice(-8).reverse(), true)}
   </div>`;
 }
 
@@ -7704,14 +7717,14 @@ function onMenteeChange() {
   if (!driveEl) return;
 
   // Priority 1: saved on the mentee record directly
-  if (mentee && mentee.driveFolderUrl) {
+  if (mentee && isFolderLink(mentee.driveFolderUrl)) {
     driveEl.value = mentee.driveFolderUrl;
     if (driveHint) { driveHint.textContent = '✅ Auto-filled from this mentee\'s previous session'; driveHint.style.display = 'block'; }
     return;
   }
   // Priority 2: most recent session for this mentee that has a Drive link
   const sessions = S.sessions
-    .filter(s => s.menteeId === menteeId && isHttpUrl(s.evidenceFolderUrl))
+    .filter(s => s.menteeId === menteeId && isFolderLink(s.evidenceFolderUrl))
     .sort((a, b) => (b.date||'').localeCompare(a.date||''));
   if (sessions.length) {
     driveEl.value = sessions[0].evidenceFolderUrl;
@@ -8112,7 +8125,7 @@ function myMenteesPage() {
     ${myMentees.length ? `<div class="tbl-wrap"><table>
       <thead><tr><th>Name</th><th>Grade</th><th>School</th><th>Gender</th><th>Sessions</th><th>Actions</th></tr></thead>
       <tbody>${myMentees.map(m=>{
-        const cnt = S.sessions.filter(s=>s.menteeId===m.id).length;
+        const cnt = realSessions().filter(s=>s.menteeId===m.id).length;
         return `<tr>
           <td><div class="av-row"><div class="av sm">${initials(m.name)}</div><strong>${m.name}</strong></div></td>
           <td><span class="badge bg">${m.grade}</span></td>
@@ -8193,7 +8206,7 @@ function allSessionsPage() {
         <select id="fg-month" onchange="filterSessions()"><option value="">All Months</option>${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select>
       </div>
     </div>
-    <div id="filtered-sessions">${sessionsTable(S.sessions.slice().reverse(),true)}</div>
+    <div id="filtered-sessions">${sessionsTable(realSessions().slice().reverse(),true)}</div>
   </div>`;
 }
 
@@ -8202,7 +8215,7 @@ function initFilters() {}
 function filterSessions() {
   const grade = document.getElementById('fg-grade')?.value;
   const month = document.getElementById('fg-month')?.value;
-  let filtered = S.sessions.slice().reverse();
+  let filtered = realSessions().slice().reverse();
   if (grade) filtered = filtered.filter(s=>s.grade===grade);
   if (month) filtered = filtered.filter(s=>s.month===month);
   const el = document.getElementById('filtered-sessions');
@@ -8216,7 +8229,7 @@ function allMenteesPage() {
     <div class="tbl-wrap"><table>
       <thead><tr><th>Name</th><th>Grade</th><th>School</th><th>Mentor</th><th>Sessions</th></tr></thead>
       <tbody>${S.mentees.length?S.mentees.map(m=>{
-        const cnt=S.sessions.filter(s=>s.menteeId===m.id).length;
+        const cnt=realSessions().filter(s=>s.menteeId===m.id).length;
         const mentor=S.users.find(u=>u.id===m.mentorId);
         return `<tr><td><div class="av-row"><div class="av sm">${initials(m.name)}</div><strong>${m.name}</strong></div></td>
           <td><span class="badge bg">${m.grade}</span></td><td>${m.school||'—'}</td>
@@ -8260,7 +8273,7 @@ function renderProgress() {
   if (!el) return;
   if (!mentees.length) { el.innerHTML=`<div class="empty"><div class="ei">📈</div><h3>No mentees match</h3></div>`; return; }
   el.innerHTML = mentees.map(mentee=>{
-    const msessions = S.sessions.filter(s=>s.menteeId===mentee.id);
+    const msessions = realSessions().filter(s=>s.menteeId===mentee.id);
     const pct = Math.round(msessions.length/12*100);
     const mentor = S.users.find(u=>u.id===mentee.mentorId);
     return `<div class="card">
@@ -8756,8 +8769,8 @@ function exportMyData() {
 }
 
 function exportAllData() {
-  if (!S.sessions.length) { toast('No sessions to export'); return; }
-  buildExport(S.sessions, 'LGM_AllMentors_Portfolio_'+CONFIG.year+'.xlsx');
+  if (!realSessions().length) { toast('No sessions to export'); return; }
+  buildExport(realSessions(), 'LGM_AllMentors_Portfolio_'+CONFIG.year+'.xlsx');
 }
 
 function exportMenteesOnly() {
@@ -8769,7 +8782,7 @@ function exportMenteesOnly() {
     var nameParts = (m.name||'').trim().split(' ');
     var firstName = m.firstName || nameParts[0] || '';
     var surname   = m.surname   || nameParts.slice(1).join(' ') || '';
-    var cnt = S.sessions.filter(function(s){ return s.menteeId===m.id; }).length;
+    var cnt = realSessions().filter(function(s){ return s.menteeId===m.id; }).length;
     var mentor = S.users.find(function(u){ return u.id===m.mentorId; });
     return [mentor?.name||m.mentorName||'', firstName, surname, m.gender||'', m.race||'', m.contact||'', m.wifi||'', m.dob||'', m.email||'', m.province||'', m.school||'', m.grade||'', m.career||'', m.status||'', m.year||CONFIG.year, m.sec_email||'', m.subjects||'', m.notes||'', cnt];
   })];
@@ -8792,7 +8805,7 @@ function buildExport(sessions, filename) {
     const nameParts = (m.name||'').trim().split(' ');
     const firstName = m.firstName || nameParts[0] || '';
     const surname   = m.surname   || nameParts.slice(1).join(' ') || '';
-    const cnt = S.sessions.filter(s=>s.menteeId===m.id).length;
+    const cnt = realSessions().filter(s=>s.menteeId===m.id).length;
     const mentor = S.users.find(u=>u.id===m.mentorId);
     return [mentor?.name||m.mentorName||'', firstName, surname, m.gender||'', m.race||'', m.contact||'', m.wifi||'', m.dob||'', m.email||'', m.province||'', m.school||'', m.grade||'', m.career||'', m.status||'', m.year||CONFIG.year, m.sec_email||'', m.subjects||'', m.notes||'', cnt];
   })];
@@ -8821,16 +8834,117 @@ function isHttpUrl(v) {
 // confirm it arrived" wording has to depend on who is looking at it. Telling a
 // mentor to use a button they can't see just leaves them stuck.
 function evidenceSentHint() {
-  return isFullAdmin()
-    ? 'Pull Sheets → Local (Admin Panel) will show the confirmed link.'
-    : 'your Co-Ordinator can confirm in the Drive folder.';
+  return 'checking that it arrived…';
 }
 
-function toast(msg) {
+// Reads a File and returns its content as base64 (without the "data:...;base64," prefix).
+// The Evidence Library called this on every file, but it was never defined anywhere —
+// so every upload from that screen threw before anything was sent.
+function fileToBase64(file) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+    reader.onload  = function(e) { resolve(String(e.target.result).split(',')[1] || ''); };
+    reader.onerror = function()  { reject(reader.error || new Error('Could not read ' + file.name)); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Evidence uploads: confirm the file really reached Drive ─────────────────
+// Uploads are fire-and-forget (the browser cannot read the script's reply), so "sent" proves
+// nothing. When a file reaches Drive the script writes its link into the session's row in the
+// Sheet — so we look for that link a few seconds later and tell the person what we found.
+const EV_CHECK = { first: 6000, every: 5000, tries: 4 };
+
+// The session's evidenceFolderUrl as it is in the Sheet right now: '' = nothing there (or no row), null = couldn't find out.
+function sheetEvidenceUrl(sessionId) {
+  if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return Promise.resolve('');
+  const ask = jsonpFetch(CONFIG.apiUrl + '?action=getData').then(function(res) {
+    const rows = res && Array.isArray(res.sessions) ? res.sessions : [];
+    const row  = rows.find(function(s) { return String(s.id) === String(sessionId); });
+    return row && typeof row.evidenceFolderUrl === 'string' ? row.evidenceFolderUrl : '';
+  }).catch(function() { return null; });
+  const patience = new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 7000); });
+  return Promise.race([ask, patience]);
+}
+
+function confirmEvidenceUpload(sessionId, baseline, statusEl) {
+  if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return;
+  let tries = 0;
+  const check = function() {
+    tries++;
+    sheetEvidenceUrl(sessionId).then(function(url) {
+      if (url && url !== baseline && url.indexOf('drive.google.com/file/d/') !== -1) {
+        const rec = S.sessions.find(function(s) { return String(s.id) === String(sessionId); });
+        if (rec) { rec.evidenceFolderUrl = url; persistState(); }
+        const msg = '✅ Confirmed — your evidence is in Google Drive';
+        toast(msg, 6000);
+        if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--green-dark)'; }
+      } else if (tries < EV_CHECK.tries) {
+        setTimeout(check, EV_CHECK.every);
+      } else {
+        const msg = '⚠️ We couldn’t confirm the file reached Google Drive. Please tell your Co-Ordinator before uploading it again.';
+        toast(msg, 10000);
+        if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--gold)'; }
+      }
+    });
+  };
+  setTimeout(check, EV_CHECK.first);
+}
+
+// Co-Ordinators only: remove a wrongly filed evidence entry (link + description) here and in the Sheet.
+// It never deletes a file in Drive. An entry that exists only to hold evidence is removed from the lists;
+// a real session keeps all its notes and just loses the evidence.
+function clearEvidence(sessionId) {
+  if (!isFullAdmin()) return;
+  const s = S.sessions.find(function(x) { return String(x.id) === String(sessionId); });
+  if (!s) { toast('⚠️ Could not find that entry'); return; }
+  const label = (s.menteeName || 'this mentee') + ' — ' + (s.month || '');
+  const evidenceOnly = isEvidenceOnly(s);
+  if (!confirm('Clear the evidence entry for ' + label + '?\n\n'
+      + 'This removes the link and description here and in the Google Sheet. It does not delete any file already in Google Drive.'
+      + (evidenceOnly ? '\n\nThis entry only exists to hold evidence, so it will disappear from your lists.'
+                      : '\n\nThe session itself is kept.'))) return;
+  logAudit('CLEAR_EVIDENCE', 'Session', s.menteeName || '', 'evidence', s.evidenceFolderUrl || '', '', label);
+  s.evidenceFolderUrl = '';
+  s.evidenceDesc = '';
+  s.driveFileUrls = '';
+  if (evidenceOnly) S.sessions = S.sessions.filter(function(x) { return x !== s; });
+  persistState();
+  if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
+    // clearEvidence tells the script this blank is deliberate (it normally refuses to blank a real Drive link)
+    sheetsPost('addSession', Object.assign({}, s, { clearEvidence: true }));
+    verifyEvidenceCleared(s.id);
+  }
+  toast('✅ Evidence cleared');
+  navigate('evidence-lib');
+}
+
+function verifyEvidenceCleared(sessionId) {
+  let tries = 0;
+  const check = function() {
+    tries++;
+    sheetEvidenceUrl(sessionId).then(function(url) {
+      if (url === '') {
+        toast('✅ Cleared in the Google Sheet too', 5000);
+      } else if (tries < EV_CHECK.tries) {
+        setTimeout(check, EV_CHECK.every);
+      } else if (url === null) {
+        toast('⚠️ Cleared here, but we couldn’t check the Google Sheet. Check that cell yourself before you rely on it.', 12000);
+      } else {
+        toast('⚠️ Cleared here, but the Google Sheet still holds a link for this entry. Clear that cell in the Sheet, or update the Apps Script to v9.', 12000);
+      }
+    });
+  };
+  setTimeout(check, EV_CHECK.first);
+}
+
+let _toastTimer = null;
+function toast(msg, ms) {
   const t = document.getElementById('toast');
   document.getElementById('toast-msg').textContent = msg;
   t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 3500);
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>t.classList.remove('show'), ms || 3500);
 }
 
 
@@ -10157,6 +10271,7 @@ async function uploadViaSScript(session, files) {
 
   let uploaded = 0;
   const uploadedUrls = [];
+  const evBaseline = (await sheetEvidenceUrl(session.id)) || '';
 
   for (const file of files) {
     try {
@@ -10220,6 +10335,7 @@ async function uploadViaSScript(session, files) {
   if (uploaded > 0) {
     setSyncStatus('ok', uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive');
     toast('📤 ' + uploaded + ' file' + (uploaded !== 1 ? 's' : '') + ' sent to Drive — ' + evidenceSentHint());
+    confirmEvidenceUpload(session.id, evBaseline);
   }
 }
 
@@ -10595,7 +10711,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610071000';
+  var _appVersion = '202610171600';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -10652,7 +10768,7 @@ function checkSessionReminders() {
 
   const missing = myMentees.filter(m => {
     if (m.offboarded) return false;
-    return !S.sessions.find(s =>
+    return !realSessions().find(s =>
       (s.menteeId === m.id || s.menteeName === m.name) &&
       s.month === thisMonth
     );
@@ -10707,7 +10823,7 @@ function dismissReminder() {
 // ─────────────────────────────────────────────────────────────
 function evidenceLibraryPage() {
   const isAdmin   = S.currentUser.role === 'admin';
-  const sessions  = isAdmin ? S.sessions : scopedSessions();
+  const sessions  = isAdmin ? S.sessions : scopedEvidenceRecords();
 
   const withEvidence = sessions.filter(s => s.evidenceFolderUrl || s.driveFileUrls);
 
@@ -10802,9 +10918,9 @@ function evLibMenteeChange() {
   if (!driveEl) return;
   // Auto-fill Drive link from mentee record or last session
   const mentee = S.mentees.find(m => m.id === menteeId);
-  if (mentee && mentee.driveFolderUrl) { driveEl.value = mentee.driveFolderUrl; return; }
+  if (mentee && isFolderLink(mentee.driveFolderUrl)) { driveEl.value = mentee.driveFolderUrl; return; }
   const last = S.sessions
-    .filter(s => s.menteeId === menteeId && isHttpUrl(s.evidenceFolderUrl))
+    .filter(s => s.menteeId === menteeId && isFolderLink(s.evidenceFolderUrl))
     .sort((a,b) => (b.date||'').localeCompare(a.date||''));
   if (last.length) driveEl.value = last[0].evidenceFolderUrl;
 }
@@ -10860,7 +10976,8 @@ async function evLibUpload() {
   if (status) { status.style.display = 'block'; status.style.color = 'var(--mid)'; status.textContent = '⏳ Saving…'; }
 
   // Find or create a session record for this mentee + month
-  let session = S.sessions.find(s => s.menteeId === menteeId && s.month === month && s.mentorId === S.currentUser.id);
+  const matches = S.sessions.filter(s => s.menteeId === menteeId && s.month === month && s.mentorId === S.currentUser.id);
+  let session = matches.find(s => !isEvidenceOnly(s)) || matches[0];
   if (!session) {
     // Create a lightweight evidence-only session record
     const mentee = S.mentees.find(m => m.id === menteeId);
@@ -10893,9 +11010,15 @@ async function evLibUpload() {
   if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') pushToSheets(session);
 
   // Upload files to Drive if configured
+  let sentCount = 0, evBaseline = '', uploadErr = '';
   if (files.length && CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
     try {
+      evBaseline = (await sheetEvidenceUrl(session.id)) || '';
       for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          toast('⚠️ ' + file.name + ' is too large (max 5MB). Please compress or use a smaller file.');
+          continue;
+        }
         const b64 = await fileToBase64(file);
         const payload = {
           action: 'uploadFile',
@@ -10923,25 +11046,35 @@ async function evLibUpload() {
         session.driveFileUrls = session.driveFileUrls
           ? session.driveFileUrls + ',sent:' + file.name
           : 'sent:' + file.name;
+        sentCount++;
       }
-      if (status) { status.textContent = '📤 Sent to Drive — ' + evidenceSentHint(); status.style.color = 'var(--mid)'; }
+      if (sentCount && status) { status.textContent = '📤 Sent to Drive — ' + evidenceSentHint(); status.style.color = 'var(--mid)'; }
+      if (sentCount) confirmEvidenceUpload(session.id, evBaseline, status);
     } catch(err) {
-      if (status) { status.textContent = '⚠️ Files saved locally but Drive upload failed: ' + err.message; status.style.color = 'var(--gold)'; }
+      uploadErr = err && err.message ? err.message : String(err);
+      console.error('Evidence upload failed:', err);
     }
   }
 
   // Persist Drive link to mentee record
-  if (driveLink || session.evidenceFolderUrl) {
+  const keepFolderLink = [driveLink, session.evidenceFolderUrl].find(isFolderLink);
+  if (keepFolderLink) {
     const mentee = S.mentees.find(m => m.id === menteeId);
-    if (mentee) mentee.driveFolderUrl = driveLink || session.evidenceFolderUrl;
+    if (mentee) mentee.driveFolderUrl = keepFolderLink;
   }
 
   persistState();
   S.pendingEvidenceFiles = [];
 
-  const fileNote = files.length ? ' File(s) sent to Drive — ' + evidenceSentHint() : '';
-  if (status) { status.textContent = '✅ Evidence saved!' + fileNote; status.style.color = 'var(--green-dark)'; }
-  toast('✅ Evidence saved!' + fileNote);
+  const fileNote = sentCount ? ' File(s) sent to Drive — ' + evidenceSentHint() : '';
+  if (uploadErr) {
+    const warn = '⚠️ Your note was saved, but the file could not be sent (' + uploadErr + '). Please tell your Co-Ordinator.';
+    if (status) { status.textContent = warn; status.style.color = 'var(--gold)'; }
+    toast(warn, 10000);
+  } else {
+    if (status) { status.textContent = '✅ Evidence saved!' + fileNote; status.style.color = 'var(--green-dark)'; }
+    toast('✅ Evidence saved!' + fileNote);
+  }
 
   // Refresh the page
   setTimeout(() => navigate('evidence-lib'), 600);
@@ -10951,20 +11084,21 @@ async function evLibUpload() {
 function renderEvidenceCards(byMentee, keys) {
   return keys.map(menteeName => {
     const sessions = byMentee[menteeName];
+    const canClear = isFullAdmin();
     return `
     <div class="card">
       <div class="card-hdr">
         <div class="card-title">
           <div class="av sm">${initials(menteeName)}</div>
           ${menteeName}
-          <span class="badge bg">${sessions.length} session${sessions.length!==1?'s':''}</span>
+          <span class="badge bg">${sessions.length} entr${sessions.length!==1?'ies':'y'}</span>
         </div>
       </div>
       <div class="tbl-wrap">
         <table>
           <thead><tr>
             <th>Month</th><th>Session Type</th><th>Description</th>
-            <th>Evidence</th><th>Uploaded By</th>
+            <th>Evidence</th><th>Uploaded By</th>${canClear ? '<th></th>' : ''}
           </tr></thead>
           <tbody>
           ${sessions.map(s => `<tr>
@@ -10985,6 +11119,7 @@ function renderEvidenceCards(byMentee, keys) {
               ).join('') : ''}
             </td>
             <td style="font-size:12px">${s.mentorName||'—'}</td>
+            ${canClear ? `<td><button class="btn btn-danger btn-sm" onclick="clearEvidence('${s.id}')">✕ Clear</button></td>` : ''}
           </tr>`).join('')}
           </tbody>
         </table>
@@ -10996,7 +11131,7 @@ function renderEvidenceCards(byMentee, keys) {
 function filterEvidence() {
   const filter = document.getElementById('ev-filter')?.value;
   const isAdmin = isFullAdmin();
-  const sessions = isAdmin ? S.sessions : scopedSessions();
+  const sessions = isAdmin ? S.sessions : scopedEvidenceRecords();
   const withEvidence = sessions.filter(s => s.evidenceFolderUrl || s.driveFileUrls);
   const byMentee = {};
   withEvidence.forEach(s => {
@@ -11249,7 +11384,7 @@ function getOfflineQueueCount() {
 // ─────────────────────────────────────────────────────────────
 function printPortfolio(menteeId) {
   const mentee   = S.mentees.find(m => m.id === menteeId);
-  const sessions = S.sessions
+  const sessions = realSessions()
     .filter(s => s.menteeId === menteeId || s.menteeName === mentee?.name)
     .sort((a,b) => MONTHS.indexOf(a.month) - MONTHS.indexOf(b.month));
 
@@ -11385,7 +11520,7 @@ function complianceDashboard() {
 
   const mentorStats = allMentors.map(mentor => {
     const myMentees  = S.mentees.filter(m => m.mentorId === mentor.id && !m.offboarded);
-    const mySessions = S.sessions.filter(s => s.mentorId === mentor.id);
+    const mySessions = realSessions().filter(s => s.mentorId === mentor.id);
     const thisMonthSessions = mySessions.filter(s => s.month === thisMonth);
     const menteesDone  = myMentees.filter(m =>
       thisMonthSessions.some(s => s.menteeId === m.id || s.menteeName === m.name)
@@ -11413,7 +11548,7 @@ function complianceDashboard() {
 
   // Calculate programme-wide completion
   const totalMentees = S.mentees.filter(m=>!m.offboarded).length;
-  const totalDone    = S.sessions.filter(s=>s.month===thisMonth).length;
+  const totalDone    = realSessions().filter(s=>s.month===thisMonth).length;
   const overallPct   = totalMentees > 0 ? Math.round(totalDone / totalMentees * 100) : 0;
 
   return `
@@ -11489,7 +11624,7 @@ function complianceDashboard() {
     <div class="card-title" style="margin-bottom:1.2rem">📈 Monthly Trend — Sessions Captured</div>
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
       ${MONTHS.slice(0, new Date().getMonth()+1).slice(-6).map(m => {
-        const cnt = S.sessions.filter(s=>s.month===m).length;
+        const cnt = realSessions().filter(s=>s.month===m).length;
         const maxPossible = S.mentees.filter(x=>!x.offboarded).length || 1;
         const pct = Math.min(100, Math.round(cnt/maxPossible*100));
         return `<div style="text-align:center">
