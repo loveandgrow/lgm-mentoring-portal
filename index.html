@@ -8563,8 +8563,8 @@ function hardResetAndResync() {
       if (res.error) throw new Error(res.error);
       console.log('📊 getData from Sheets:', 'mentees:', (res.mentees||[]).length, 'sessions:', (res.sessions||[]).length, 'users:', (res.users||[]).length);
       console.log('📋 First mentee from Sheets:', JSON.stringify((res.mentees||[])[0]));
-      const sessions = Array.isArray(res.sessions) ? res.sessions : [];
-      const mentees  = Array.isArray(res.mentees)  ? res.mentees  : [];
+      const sessions = normalizeSheetDates(Array.isArray(res.sessions) ? res.sessions : [], ['date']);
+      const mentees  = normalizeSheetDates(Array.isArray(res.mentees)  ? res.mentees  : [], ['dob', 'offboardDate']);
       // Keep current users (DEMO_USERS) if Sheets has none or fewer — never lose users
       const users    = (Array.isArray(res.users) && res.users.length >= S.users.length)
         ? res.users.map(function(u) {
@@ -8690,8 +8690,8 @@ function resyncFromSheets() {
     .then(res => {
       if (!res || typeof res !== 'object') throw new Error('Sheets returned an error');
       if (res.error) throw new Error(res.error);
-      const sessions = Array.isArray(res.sessions) ? res.sessions : [];
-      const mentees  = Array.isArray(res.mentees)  ? res.mentees  : [];
+      const sessions = normalizeSheetDates(Array.isArray(res.sessions) ? res.sessions : [], ['date']);
+      const mentees  = normalizeSheetDates(Array.isArray(res.mentees)  ? res.mentees  : [], ['dob', 'offboardDate']);
       if (mentees.length === 0 && S.mentees.length > 0) {
         throw new Error('Sheets returned 0 mentees, but this device has ' + S.mentees.length + ' locally — refusing to overwrite. Check the Mentees sheet before retrying.');
       }
@@ -8835,6 +8835,23 @@ function isHttpUrl(v) {
 // mentor to use a button they can't see just leaves them stuck.
 function evidenceSentHint() {
   return 'checking that it arrived…';
+}
+
+// Google Sheets turns a typed date into a real date, and the script returns it as a UTC timestamp:
+// 22 Sept in South Africa arrives as "2026-09-21T22:00:00.000Z" — shown raw, and a day early.
+// Convert those back into plain local dates (YYYY-MM-DD). Anything else is left exactly as it is.
+function plainDate(v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(v)) return v;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function normalizeSheetDates(list, fields) {
+  return (list || []).map(function(r) {
+    const o = Object.assign({}, r);
+    fields.forEach(function(f) { if (o[f] != null && o[f] !== '') o[f] = plainDate(o[f]); });
+    return o;
+  });
 }
 
 // Reads a File and returns its content as base64 (without the "data:...;base64," prefix).
@@ -10711,7 +10728,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610171600';
+  var _appVersion = '202610171900';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -11516,7 +11533,10 @@ ${sessions.length === 0 ? '<p style="color:#6a8a76;text-align:center;padding:2re
 // ─────────────────────────────────────────────────────────────
 function complianceDashboard() {
   const thisMonth = MONTHS[new Date().getMonth()];
-  const allMentors = S.users.filter(u => u.role !== 'admin' && !u.offboarded);
+  // Co-Ordinators mentor people too: list an admin as soon as they have mentees of their own.
+  const hasMentees = {};
+  S.mentees.forEach(m => { if (!m.offboarded && m.mentorId) hasMentees[m.mentorId] = true; });
+  const allMentors = S.users.filter(u => !u.offboarded && (u.role !== 'admin' || hasMentees[u.id]));
 
   const mentorStats = allMentors.map(mentor => {
     const myMentees  = S.mentees.filter(m => m.mentorId === mentor.id && !m.offboarded);
@@ -11596,7 +11616,7 @@ function complianceDashboard() {
         </tr></thead>
         <tbody>
         ${mentorStats.sort((a,b) => a.pct - b.pct).map(m => `<tr>
-          <td><div class="av-row"><div class="av sm">${initials(m.mentor.name)}</div><strong>${m.mentor.name}</strong></div></td>
+          <td><div class="av-row"><div class="av sm">${initials(m.mentor.name)}</div><strong>${m.mentor.name}</strong>${m.mentor.role === 'admin' ? ' <span class="badge bo" style="font-size:10px;margin-left:6px">Co-Ordinator</span>' : ''}</div></td>
           <td>${m.myMentees.length}</td>
           <td style="color:var(--green-dark);font-weight:700">${m.menteesDone.length}</td>
           <td style="color:${m.menteesMissing.length>0?'#dc2626':'var(--green-dark)'};font-weight:700">${m.menteesMissing.length}</td>
