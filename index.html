@@ -7567,6 +7567,7 @@ function capturePage() {
         <button class="btn btn-outline btn-sm" onclick="loadGradeSubjects()">🔄 Load Subjects for Grade</button>
         <button class="btn btn-ghost btn-sm" onclick="addSubjectRow()">➕ Add Subject</button>
       </div>
+      <div id="ac-source-note" style="display:none;margin:-.2rem 0 .8rem;font-size:12px;color:var(--mid);background:var(--green-light);border-radius:8px;padding:8px 12px;line-height:1.5"></div>
 
       <!-- SUBJECT TABLE -->
       <div class="tbl-wrap">
@@ -7706,6 +7707,7 @@ function initCapture() {
   S.selectedSessionTypes = [];
   S.selectedWellbeing = '';
   S.pendingFiles = [];
+  S.subjectsFor = null;
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
   // Subjects loaded by loadMenteeSubjects when mentee is selected
   // Drag drop
@@ -7777,12 +7779,69 @@ function onMenteeChange() {
   if (driveHint) driveHint.style.display = 'none';
 }
 
+// What was last saved for this mentee's Academic Progress table: their most recent session whose saved table
+// has at least one named subject. Evidence-only records and sessions with no table are skipped. "Most recent"
+// = latest session date, then the one captured last.
+function lastAcademicSnapshot(menteeId) {
+  const idNum = function(s) { return parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 0; };
+  const found = [];
+  S.sessions.forEach(function(s) {
+    if (s.menteeId !== menteeId) return;
+    let rows = [];
+    try { rows = JSON.parse(s.subjects || '[]'); } catch (e) { rows = []; }
+    if (!Array.isArray(rows)) return;
+    rows = rows.filter(function(r) { return r && String(r.subject || '').trim(); });
+    if (rows.length) found.push({ s: s, rows: rows });
+  });
+  if (!found.length) return null;
+  found.sort(function(a, b) {
+    const da = plainDate(String(a.s.date || '')), db = plainDate(String(b.s.date || ''));
+    if (da !== db) return da < db ? 1 : -1;
+    return idNum(b.s) - idNum(a.s);
+  });
+  return found[0];
+}
+function showAcademicSource(s, mentee) {
+  const el = document.getElementById('ac-source-note');
+  if (!el) return;
+  el.innerHTML = '📋 Showing <strong>' + escHtml(mentee.name || 'this mentee') + '</strong>’s last saved marks and goals (' +
+                 escHtml(s.month || 'earlier') + ' session). Add the new term, then save. <em>Load Subjects for Grade</em> starts again from the grade’s standard subjects.';
+  el.style.display = 'block';
+}
+function hideAcademicSource() {
+  const el = document.getElementById('ac-source-note');
+  if (el) el.style.display = 'none';
+}
+
 function loadMenteeSubjects(menteeId) {
   const mentee = S.mentees.find(function(m){ return m.id === menteeId; });
   if (!mentee) return;
   const tbody = document.getElementById('subj-tbody');
   if (!tbody) return;
-  if (tbody.children.length > 0) return; // don't overwrite existing data
+  if (tbody.children.length > 0) {
+    if (S.subjectsFor === menteeId) return; // same mentee: keep what is already there, including anything typed
+    const typed = Array.from(tbody.querySelectorAll('input')).some(function(i){ return i.value.trim() !== ''; });
+    if (!S.subjectsFor && typed) { S.subjectsFor = menteeId; return; } // typed before choosing a mentee: keep it, now theirs
+    // A DIFFERENT mentee was chosen: never leave the previous mentee's subjects and marks on screen
+    tbody.innerHTML = '';
+    ['ac-goal-short', 'ac-goal-long'].forEach(function(id){ const el = document.getElementById(id); if (el) el.value = ''; });
+  }
+  S.subjectsFor = menteeId;
+  hideAcademicSource();
+
+  // Priority 0: what was last saved for this mentee — renamed subjects, earlier terms and goals carry forward
+  const snap = lastAcademicSnapshot(menteeId);
+  if (snap) {
+    snap.rows.forEach(function(r) {
+      addSubjectRow(r.subject, r.prevMark, r.t1Actual, r.t1Goal, r.t2Actual, r.t2Goal, r.t3Actual, r.t3Goal, r.t4Actual, r.t4Goal);
+    });
+    const ags = document.getElementById('ac-goal-short'), agl = document.getElementById('ac-goal-long');
+    if (ags && !ags.value && snap.s.goalShort) ags.value = snap.s.goalShort;
+    if (agl && !agl.value && snap.s.goalLong)  agl.value = snap.s.goalLong;
+    showAcademicSource(snap.s, mentee);
+    updateAcademicAverages();
+    return;
+  }
 
   // Priority 1: subjects stored on mentee from import (comma or semicolon separated)
   const subjectStr  = mentee.subjects || '';
@@ -7887,11 +7946,11 @@ function addSubjectRow(name, prev, t1a, t1g, t2a, t2g, t3a, t3g, t4a, t4g) {
     var col = v===''?'':parseFloat(v)>=0?'color:#16a34a':'color:#dc2626';
     return '<span class="'+cls+'" style="display:block;text-align:center;font-weight:700;font-size:13px;'+col+'">'+v+'</span>';
   }
-  const n = function(v){ return '<input type="number" min="0" max="100" step="0.1" value="'+v+'" placeholder="%" style="width:52px;text-align:center" oninput="updateAcademicAverages()">'; };
+  const n = function(v){ return '<input type="number" min="0" max="100" step="0.1" value="'+escHtml(v)+'" placeholder="%" style="width:52px;text-align:center" oninput="updateAcademicAverages()">'; };
 
   const tr = document.createElement('tr');
   tr.innerHTML =
-    '<td><input type="text" value="'+name+'" placeholder="Subject" style="min-width:120px"></td>'
+    '<td><input type="text" value="'+escHtml(name)+'" placeholder="Subject" style="min-width:120px"></td>'
     +'<td>'+n(prev)+'</td>'
     +'<td>'+n(t1a)+'</td><td>'+n(t1g)+'</td><td>'+varSpan(t1a,t1g,'tv1')+'</td>'
     +'<td>'+n(t2a)+'</td><td>'+n(t2g)+'</td><td>'+varSpan(t2a,t2g,'tv2')+'</td>'
@@ -7964,7 +8023,10 @@ function loadGradeSubjects() {
   const grade = document.getElementById('f-grade')?.value;
   if (!grade) { toast('Select a grade first'); return; }
   document.getElementById('subj-tbody').innerHTML = '';
+  hideAcademicSource();
+  S.subjectsFor = document.getElementById('f-mentee')?.value || null;
   (GRADE_SUBJECTS[grade]||[]).forEach(function(s){ addSubjectRow(s); });
+  updateAcademicAverages();
 }
 
 function handleFiles(e) { handleFileList(e.target.files); e.target.value=''; }
@@ -10769,7 +10831,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610181000';
+  var _appVersion = '202610181100';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
