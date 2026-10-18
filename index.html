@@ -173,6 +173,8 @@ tbody tr:hover td{background:var(--green-light)}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#d1d5db;transition:background .3s}
 .sync-dot.ok{background:var(--green)}.sync-dot.saving{background:var(--gold);animation:pulse 1s infinite}.sync-dot.err{background:#ef4444}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.view-switch{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:white;border-radius:999px;padding:6px 14px;font:700 12px 'Nunito',sans-serif;cursor:pointer;white-space:nowrap}
+.view-switch:hover{background:rgba(255,255,255,.3)}
 .hamburger{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px;align-items:center;justify-content:center;flex-shrink:0}
 .mobile-menu{position:fixed;top:62px;left:0;right:0;bottom:0;background:rgba(20,32,24,.6);z-index:99;display:none}
 .mobile-menu.open{display:block}
@@ -183,6 +185,7 @@ tbody tr:hover td{background:var(--green-light)}
 /* ── Tablet ≤1080px: switch to hamburger, hide desktop nav ── */
 @media(max-width:1080px){
   .hamburger{display:flex}
+  .view-switch{display:none !important}
   .topbar-nav{display:none !important}
   #topbar-nav{display:none !important}
   .stats-grid{grid-template-columns:1fr 1fr}
@@ -4993,6 +4996,7 @@ b8lobw34VHra4E87yU8gLCKEfdWp/qra9SyDUzGnhh/85v/Z" alt="LGM" class="topbar-logo">
     <nav class="topbar-nav" id="topbar-nav"></nav>
     <div class="topbar-right">
       <button class="hamburger" id="hamburger-btn" onclick="toggleMobileMenu()" title="Menu">&#9776;</button>
+      <button class="view-switch" id="view-switch" onclick="toggleViewMode()" style="display:none"></button>
       <div class="user-chip">
         <div class="user-av" id="user-av">?</div>
         <span id="user-name-display">&mdash;</span>
@@ -6870,6 +6874,7 @@ function persistState() {
 // LOGIN FLOW
 // ─────────────────────────────────────────────────────────────
 let selectedUserId = null;
+let loginDoor = 'name';   // 'name' = signed in by name (the mentor)  |  'coordinator' = "Sign in as Coordinator"
 
 
 // ── Scope helper — returns mentees/sessions visible to current user ──────────
@@ -6877,14 +6882,47 @@ let selectedUserId = null;
 function currentUser() {
   if (!S.currentUser) return null;
   // Always look up from S.users to get latest fields including group/leadMentor
-  return S.users.find(function(u){ return u.id === S.currentUser.id; }) || S.currentUser;
+  return effectiveUser(S.users.find(function(u){ return u.id === S.currentUser.id; }) || S.currentUser);
+}
+
+// A Co-Ordinator has TWO views of the same login:
+//   'team'        — signed in by name, as the MENTOR (e.g. Harishnee): the mentor menu, and only your own team
+//                   (you + the trainees you lead) with their mentees and sessions.
+//   'coordinator' — "Sign in as Coordinator": the admin menu, and EVERYTHING in the programme.
+// In the team view the app simply treats the person as a lead mentor with team scope, so every page that already
+// looks after a mentor does so. Nothing is stored differently, and the real account is never changed.
+function effectiveUser(real) {
+  if (real && real.role === 'admin' && S.viewMode === 'team') {
+    return Object.assign({}, real, { role: 'mentor', group: 'lead', teamView: true });
+  }
+  return real;
+}
+function realUser() { return S.currentUser ? (S.users.find(function(u){ return u.id === S.currentUser.id; }) || null) : null; }
+function isCoordinatorAccount() { const r = realUser(); return !!(r && r.role === 'admin'); }
+function refreshViewSwitch() {
+  const btn = document.getElementById('view-switch');
+  if (!btn) return;
+  btn.style.display = isCoordinatorAccount() ? '' : 'none';
+  btn.textContent = S.viewMode === 'team' ? '👑 Co-Ordinator view' : '👤 My team view';
+  btn.title = S.viewMode === 'team' ? 'Switch to the Co-Ordinator view: everything in the programme'
+                                    : 'Switch to your own team: your mentors and mentees only';
+}
+function toggleViewMode() {
+  const real = realUser();
+  if (!real || real.role !== 'admin') return;
+  S.viewMode = S.viewMode === 'team' ? 'coordinator' : 'team';
+  S.currentUser = effectiveUser(real);
+  buildNav();
+  buildMobileNav();
+  navigate('dashboard');
+  toast(S.viewMode === 'team' ? '👤 Showing your own team' : '👑 Showing the whole programme');
 }
 
 function scopedMentees() {
   const u = currentUser();
   if (!u) return [];
   // Co-Ordinator (admin+lead) — sees own team's mentees
-  if (u.role === 'admin' && u.group === 'lead') {
+  if (u.teamView) {
     const myTeam = S.users
       .filter(function(m){ return m.leadMentor === u.name || m.id === u.id; })
       .map(function(m){ return m.id; });
@@ -6912,7 +6950,7 @@ function isFolderLink(v) { return isHttpUrl(v) && String(v).indexOf('/file/d/') 
 function scopedEvidenceRecords() {
   const u = currentUser();
   if (!u) return [];
-  if (u.role === 'admin' && u.group === 'lead') {
+  if (u.teamView) {
     const myTeam = S.users
       .filter(function(m){ return m.leadMentor === u.name || m.id === u.id; })
       .map(function(m){ return m.id; });
@@ -6938,6 +6976,7 @@ function isLeadOnly() {
   return u && u.role === 'mentor' && u.group === 'lead';
 }
 function buildMentorSelectList() {
+  loginDoor = 'name';
   // Populate year spans dynamically
   document.querySelectorAll('.lgm-year').forEach(el => {
     el.textContent = CONFIG.year;
@@ -6996,6 +7035,7 @@ function onDropdownChange() {
 }
 
 function goToAdminPin() {
+  loginDoor = 'coordinator';
   // Find first admin user and go straight to PIN screen
   const adminUsers = S.users.filter(u => u.role === 'admin' && !u.offboarded);
   if (!adminUsers.length) {
@@ -7019,6 +7059,7 @@ function goToAdminPin() {
 }
 
 function showAdminSelector(admins) {
+  loginDoor = 'coordinator';
   // Reuse the select screen but filter to admins only
   const dropdown = document.getElementById('mentor-dropdown');
   if (dropdown) {
@@ -7064,13 +7105,11 @@ function doLogin() {
     document.getElementById('pin-input').focus();
     return;
   }
-  S.currentUser = user;
+  // Signed in by name = the mentor view (a Co-Ordinator sees only their own team).
+  // "Sign in as Coordinator" = the Co-Ordinator view (everything). The header switch flips between them.
+  S.viewMode = (loginDoor === 'coordinator') ? 'coordinator' : 'team';
+  S.currentUser = effectiveUser(user);
   try { localStorage.setItem('lgm_last_user', user.id); } catch(e) {}
-  // If user is admin (co-ordinator), ensure they get full admin access
-  // regardless of which login method they used
-  if (user.role === 'admin') {
-    S.currentUser = user;
-  }
   launchApp();
 }
 
@@ -7186,6 +7225,7 @@ function buildNav() {
   document.getElementById('topbar-nav').innerHTML = items.map(i =>
     `<button class="nav-btn" id="nb-${i.id}" onclick="navigate('${i.id}')">${i.label}</button>`
   ).join('');
+  refreshViewSwitch();
 }
 
 function navigate(page) {
@@ -7301,9 +7341,10 @@ function mentorDashboard() {
 function adminDashboard() {
   const thisMonth = MONTHS[new Date().getMonth()];
   const cu2 = currentUser();
-  const allMentors = (cu2 && cu2.group === 'lead')
-    ? S.users.filter(function(u){ return !u.offboarded && (u.id===cu2.id || u.leadMentor===cu2.name); })
-    : S.users.filter(function(u){ return u.role==='mentor' && !u.offboarded; });
+  // Co-Ordinator view = the whole programme: every mentor, plus Co-Ordinators who mentor people of their own
+  const ownMentees = {};
+  S.mentees.forEach(function(m){ if (!m.offboarded && m.mentorId) ownMentees[m.mentorId] = true; });
+  const allMentors = S.users.filter(function(u){ return !u.offboarded && (u.role !== 'admin' || ownMentees[u.id]); });
   const withEvid = S.sessions.filter(s=>s.evidenceFolderUrl).length;
 
   const gradeStats = ['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>({
@@ -10728,7 +10769,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610171900';
+  var _appVersion = '202610181000';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -11870,7 +11911,10 @@ function buildMobileNav() {
     `<button class="mobile-nav-btn" onclick="navigate('${item.id}');closeMobileMenu()">
       <span style="font-size:16px">${item.icon}</span> ${item.label}
     </button>`
-  ).join('');
+  ).join('') + (isCoordinatorAccount()
+    ? `<button class="mobile-nav-btn" style="margin-top:.6rem;border-top:1px dashed var(--soft);border-radius:0;padding-top:14px" onclick="toggleViewMode();closeMobileMenu()">
+         <span style="font-size:16px">${S.viewMode === 'team' ? '👑' : '👤'}</span> ${S.viewMode === 'team' ? 'Co-Ordinator view (everything)' : 'My team view'}
+       </button>` : '');
 }
 
 
