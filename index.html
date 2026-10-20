@@ -8853,6 +8853,48 @@ function shareDataLink() {
 }
 
 // ── Auto-import from ?import= URL param on page load ─────────────
+// ── Setup link: the portal key and nothing else ───────────────────────────────────────────────
+// For a phone that already holds its data (a Share Data link REPLACES the data). The key rides after the # so it is never sent to the
+// website's server or its logs, and it is removed from the address bar the moment the page reads it. It is also how a replaced key reaches the team.
+function setupLinkFor(key) { return location.href.split(/[?#]/)[0] + '#setup=' + encodeURIComponent(key); }
+function checkSetupParam() {
+  const m = /^#setup=([^&]*)/.exec(location.hash || '');
+  if (!m) return;
+  let key = ''; try { key = decodeURIComponent(m[1]); } catch (e) {}
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}      // the key must not stay in the address bar or the history
+  if (!/^[A-Za-z0-9]{16,128}$/.test(key)) { toast('⚠️ That setup link is not valid. Ask your Co-Ordinator for a new one.', 9000); return; }
+  let had = false; try { had = !!localStorage.getItem('lgm_portal_key'); } catch (e) {}
+  CONFIG.portalKey = key;
+  try { localStorage.setItem('lgm_portal_key', key); } catch (e) {}
+  checkSheetAccess().then(function(res) {
+    const word = had ? 'updated' : 'saved';
+    if (!res || typeof res.keyRequired !== 'boolean') toast('🔑 Portal key ' + word + ' on this phone.', 6000);
+    else if (res.keyRequired && !res.keyValid) toast('⚠️ Key ' + word + ', but the script says it is not valid. Ask your Co-Ordinator for a fresh setup link.', 10000);
+    else toast('🔑 Portal key ' + word + ' — this phone can sync.', 6000);
+  });
+}
+function showSetupLink() {
+  if (!CONFIG.portalKey) { toast('Save the portal key on this device first, then make the link.', 7000); return; }
+  const old = document.getElementById('setup-overlay'); if (old) old.remove();
+  const overlay = document.createElement('div'); overlay.id = 'setup-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  const box = document.createElement('div'); box.style.cssText = 'background:white;border-radius:16px;padding:1.5rem;max-width:500px;width:100%';
+  box.innerHTML = '<h3 style="margin:0 0 .8rem;color:var(--green-dark);font-size:18px">🔑 Setup link — key only</h3>'
+    + '<p style="font-size:13px;color:var(--mid);margin-bottom:1rem">Send this to a mentor whose phone already has their data. Opening it saves the portal key on that phone and changes nothing else. '
+    + 'It carries no mentee data and no PINs. Keep it private: anyone who has it holds the key.</p>'
+    + '<textarea id="setup-url-box" readonly style="width:100%;height:70px;font-size:12px;border:1px solid #ccc;border-radius:8px;padding:8px;resize:none;word-break:break-all;box-sizing:border-box"></textarea>'
+    + '<div id="setup-btns" style="display:flex;gap:8px;margin-top:.8rem;flex-wrap:wrap"></div>';
+  overlay.appendChild(box); document.body.appendChild(overlay);
+  const ta = document.getElementById('setup-url-box'); ta.value = setupLinkFor(CONFIG.portalKey);
+  const btns = document.getElementById('setup-btns');
+  const copy = document.createElement('button'); copy.className = 'btn btn-primary'; copy.textContent = 'Copy Link';
+  copy.onclick = function() { ta.select(); try { navigator.clipboard.writeText(ta.value).then(function() { toast('Copied. Send it only to the mentor it is for.', 6000); }); } catch (e) { document.execCommand('copy'); toast('Copied.', 4000); } };
+  btns.appendChild(copy);
+  if (navigator.share) { const sh = document.createElement('button'); sh.className = 'btn btn-primary'; sh.style.background = 'var(--green-dark)'; sh.textContent = 'Share via WhatsApp'; sh.onclick = function() { navigator.share({ title: 'LGM Portal setup', url: ta.value }); }; btns.appendChild(sh); }
+  const close = document.createElement('button'); close.className = 'btn btn-ghost'; close.textContent = 'Close'; close.onclick = function() { overlay.remove(); };
+  btns.appendChild(close);
+}
+
 function checkImportParam() {
   try {
     if (!location.search) return;
@@ -9068,14 +9110,14 @@ function scriptPost(body) {                                   // body: an object
   return fetch(CONFIG.apiUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(o) });
 }
 function sheetErrorText(msg) {                               // a refusal, in plain words
-  return /unauthori[sz]ed/i.test(String(msg)) ? 'this device does not have the portal key (or it is wrong). Ask your Co-Ordinator for a Share Data link.' : msg;
+  return /unauthori[sz]ed/i.test(String(msg)) ? 'this device does not have the portal key (or it is wrong). Ask your Co-Ordinator for the setup link.' : msg;
 }
 function renderAccessBanner(denied) {
   const old = document.getElementById('access-banner'); if (old) old.remove();
   if (!denied) return;
   const wrap = document.getElementById('page-wrap'); if (!wrap || !wrap.parentNode) return;
   const el = document.createElement('div'); el.id = 'access-banner'; el.className = 'access-banner';
-  el.innerHTML = '<span>🔑 <strong>This device cannot sync with the Google Sheet yet.</strong> The script now needs a portal key. Your sessions are safe on this phone and will send once it has the key. Ask your Co-Ordinator for a Share Data link.</span>';
+  el.innerHTML = '<span>🔑 <strong>This device cannot sync with the Google Sheet yet.</strong> The script now needs a portal key. Your sessions are safe on this phone and will send once it has the key. Ask your Co-Ordinator for the setup link.</span>';
   wrap.parentNode.insertBefore(el, wrap);
 }
 // Ask the script whether it needs a key and whether this device's key works, so a refusal is never silent.
@@ -10812,7 +10854,7 @@ async function uploadFilesToDrive(session, files) {
 
 async function uploadViaSScript(session, files) {
   if (!files || !files.length) return;
-  if (S.sheetAccess === 'denied') { toast('🔑 This device needs the portal key before files can go to Drive. Ask your Co-Ordinator for a Share Data link.', 9000); setSyncStatus('err', 'Not uploaded — portal key needed'); return; }
+  if (S.sheetAccess === 'denied') { toast('🔑 This device needs the portal key before files can go to Drive. Ask your Co-Ordinator for the setup link.', 9000); setSyncStatus('err', 'Not uploaded — portal key needed'); return; }
   setSyncStatus('saving', 'Uploading evidence to Drive…');
 
   let uploaded = 0;
@@ -11011,7 +11053,7 @@ function adminPanel() {
     </div>
     <p style="font-size:13px;color:var(--light);margin-bottom:1rem">
       The script's address is written into the portal's page, so anyone could use it to read or change your data. With the key switched on in the script, only devices that hold the key can.
-      Paste the key from the script here. Mentors receive it automatically when they open a Share Data link made on a device that has it.
+      Paste the key from the script here. Then use 📲 Make a setup link to give it to mentors: that link carries only the key, so it is safe to open on a phone that already holds its data. A Share Data link carries the key too, for a phone that has no data yet.
     </p>
     <div class="fgrp" style="max-width:640px;margin-bottom:.8rem">
       <label>Portal key (from the script's createPortalKey)</label>
@@ -11019,6 +11061,7 @@ function adminPanel() {
     </div>
     <button class="btn btn-primary" onclick="savePortalKey()">💾 Save key</button>
     <button class="btn btn-outline" style="margin-left:8px" onclick="testPortalKey()">🧪 Check access</button>
+    <button class="btn btn-outline" style="margin-left:8px" onclick="showSetupLink()">📲 Make a setup link</button>
     <div id="portal-key-result" style="margin-top:1rem;font-size:13px"></div>
   </div>
 
@@ -11162,7 +11205,7 @@ async function testSheets() {
       if (r.ok) {
         const data = await r.json();
         if (data.keyRequired === true && data.keyValid !== true) {
-          el.innerHTML = diagBox('🔑 The script needs the portal key', 'The script is reachable, but it requires a portal key and this device does not have a working one. Paste the key in the Portal key box, or open a Share Data link made on a device that has it.');
+          el.innerHTML = diagBox('🔑 The script needs the portal key', 'The script is reachable, but it requires a portal key and this device does not have a working one. Paste the key in the Portal key box, or open the setup link from your Co-Ordinator.');
           return;
         }
         el.innerHTML = diagBox('✅ Google Sheets fully connected!',
@@ -11275,7 +11318,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610201300';
+  var _appVersion = '202610201400';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -11293,6 +11336,7 @@ window.addEventListener('DOMContentLoaded', () => {
     location.reload();
     return;
   }
+  checkSetupParam();         // key-only setup link (#setup=...): runs first, because the import tidy-up clears the whole address bar
   checkImportParam();        // auto-import from shared link if ?import= param present
   loadLocalState();          // fills S.users, S.mentees, S.sessions
   console.log('🧑‍🎓 Mentees in state after load:', S.mentees.length, S.mentees.map(function(m){return m.name+' → '+m.mentorName;}));
@@ -11549,7 +11593,7 @@ async function evLibUpload() {
   const driveEl  = document.getElementById('ev-up-drive-link');
   const descEl   = document.getElementById('ev-up-desc');
   const status   = document.getElementById('ev-up-status');
-  if (S.sheetAccess === 'denied') { if (status) { status.style.display = 'block'; status.innerHTML = '🔑 This device needs the portal key before files can go to Drive. Ask your Co-Ordinator for a Share Data link.'; } toast('🔑 Not uploaded — this device needs the portal key.', 9000); return; }
+  if (S.sheetAccess === 'denied') { if (status) { status.style.display = 'block'; status.innerHTML = '🔑 This device needs the portal key before files can go to Drive. Ask your Co-Ordinator for the setup link.'; } toast('🔑 Not uploaded — this device needs the portal key.', 9000); return; }
 
   const menteeId   = menteeEl?.value;
   const menteeName = menteeEl?.options[menteeEl.selectedIndex]?.getAttribute('data-name') || '';
