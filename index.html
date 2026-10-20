@@ -172,6 +172,8 @@ tbody tr:hover td{background:var(--green-light)}
 .sync-bar{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--light);margin-bottom:1rem}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#d1d5db;transition:background .3s}
 .sync-dot.ok{background:var(--green)}.sync-dot.saving{background:var(--gold);animation:pulse 1s infinite}.sync-dot.err{background:#ef4444}
+.access-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:14px;line-height:1.5}
+.access-banner span{flex:1;min-width:200px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .view-switch{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:white;border-radius:999px;padding:6px 14px;font:700 12px 'Nunito',sans-serif;cursor:pointer;white-space:nowrap}
 .view-switch:hover{background:rgba(255,255,255,.3)}
@@ -180,6 +182,22 @@ tbody tr:hover td{background:var(--green-light)}
 .undo-banner span{flex:1;min-width:180px}
 .undo-btn{background:#fff;color:#14532D;border:1.5px solid #14532D;border-radius:8px;padding:6px 14px;font-weight:800;font-size:13px;cursor:pointer}
 .undo-x{background:none;border:none;color:#14532D;font-size:16px;cursor:pointer;padding:4px 8px}
+.ctx-strip{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--green-light);border:1px solid #BFE3CF;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px;color:var(--green-dark)}
+.ctx-name{font-weight:800}
+.ctx-chip{background:#fff;border:1px solid #BFE3CF;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700}
+.ctx-empty{font-size:13px;color:var(--mid)}
+.edit-banner{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;background:#FEF6E8;border:1px solid #F5D9A8;color:#92400E;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px;line-height:1.5}
+.edit-banner span{flex:1;min-width:200px}
+.edit-cancel{background:#fff;color:#92400E;border:1.5px solid #92400E;border-radius:8px;padding:5px 12px;font-weight:800;font-size:12px;cursor:pointer}
+.waiting-hint{margin-top:.8rem;background:#E8F5EE;color:#14532D;border:1px solid #BFE3CF;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.5}
+#ev-attached{background:var(--green-light);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:1rem;font-size:13px;line-height:1.6}
+.attached-title{font-weight:800;color:var(--green-dark);margin-bottom:4px}
+#ev-attached a{color:var(--green-dark);font-weight:700}
+.attached-desc{color:var(--mid)}
+.attached-note{color:var(--light);font-size:12px;margin-top:4px}
+.ev-target{margin:-.4rem 0 1rem;font-size:13px;color:var(--mid);background:var(--green-light);border-radius:8px;padding:8px 12px;line-height:1.5}
+.row-actions{display:flex;flex-wrap:wrap;gap:2px 14px;margin-top:2px}
+.row-edit{background:none;border:none;color:var(--green-dark);font-size:12px;font-weight:700;cursor:pointer;padding:2px 0;text-decoration:underline}
 .row-remove{background:none;border:none;color:#B91C1C;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0;margin-top:2px;text-decoration:underline}
 .hamburger{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px;align-items:center;justify-content:center;flex-shrink:0}
 .mobile-menu{position:fixed;top:62px;left:0;right:0;bottom:0;background:rgba(20,32,24,.6);z-index:99;display:none}
@@ -6654,6 +6672,7 @@ const CONFIG = {
   apiUrl:       'https://script.google.com/macros/s/AKfycbxQPGuZHAe8WJrU5YTGXHjmklfuPwAz34e2cdMxrIa5sHo8gnk-d8kMHa69NiD8lIPv/exec',
   driveFolderId:'11cI7GlG1TSb3uSOZq2x8QWiJyA-WTFny',
   driveApiKey:  'AIzaSyAbHAJgaJv2AdymjExWn6vZaUrOAbpglRU',
+  portalKey:    '',          // v11: the key the script asks for. Held only on this device (localStorage lgm_portal_key), never in the page.
   appName: 'Love and Grow Mentorship',
   domain:  'loveandgrowmentorship.org',
   year:    '2026',
@@ -6999,17 +7018,17 @@ function buildMentorSelectList() {
   var html = '<option value="">&#8212; Select your name &#8212;</option>';
   if (leads.length) {
     html += '<optgroup label="Lead Mentors">';
-    html += leads.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+    html += leads.map(function(u){ return '<option value="'+escHtml(u.id)+'">'+escHtml(u.name)+'</option>'; }).join('');
     html += '</optgroup>';
   }
   if (trainees.length) {
     html += '<optgroup label="Trainee Mentors">';
-    html += trainees.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+    html += trainees.map(function(u){ return '<option value="'+escHtml(u.id)+'">'+escHtml(u.name)+'</option>'; }).join('');
     html += '</optgroup>';
   }
   // Fallback: if no groups, show all
   if (!leads.length && !trainees.length) {
-    html += mentors.map(function(u){ return '<option value="'+u.id+'">'+u.name+'</option>'; }).join('');
+    html += mentors.map(function(u){ return '<option value="'+escHtml(u.id)+'">'+escHtml(u.name)+'</option>'; }).join('');
   }
   dropdown.innerHTML = html;
 
@@ -7070,7 +7089,7 @@ function showAdminSelector(admins) {
   const dropdown = document.getElementById('mentor-dropdown');
   if (dropdown) {
     dropdown.innerHTML = '<option value="">&#8212; Select coordinator &#8212;</option>' +
-      admins.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+      admins.map(u => `<option value="${escHtml(u.id)}">${escHtml(u.name)}</option>`).join('');
     selectedUserId = null;
   }
   document.querySelector('#screen-select .login-sub').textContent = 'Select coordinator account to sign in.';
@@ -7150,7 +7169,7 @@ function launchApp() {
 
 function silentSyncOnLogin() {
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return;
-  jsonpFetch(CONFIG.apiUrl + '?action=getData')
+  jsonpFetch(scriptGetUrl('getData'))
     .then(function(res) {
       if (!res || !res.ok) return;
       var changed = false;
@@ -7206,6 +7225,7 @@ function launchApp() {
   buildNav();
   navigate('dashboard');
   initProductionFeatures();
+  checkSheetAccess();      // v11: is a portal key needed, and does this device's work? (launchApp is defined twice; this is the live one, the later definition)
 }
 
 function buildNav() {
@@ -7229,13 +7249,16 @@ function buildNav() {
     {id:'progress',     label:'📈 Progress'},
   ];
   document.getElementById('topbar-nav').innerHTML = items.map(i =>
-    `<button class="nav-btn" id="nb-${i.id}" onclick="navigate('${i.id}')">${i.label}</button>`
+    `<button class="nav-btn" id="nb-${escHtml(i.id)}" onclick="navigate('${jsq(i.id)}')">${escHtml(i.label)}</button>`
   ).join('');
   refreshViewSwitch();
 }
 
 function navigate(page) {
   S.currentPage = page;
+  const keepEdit = (page === 'capture' && S._editOnce);   // only ✏️ Update may open the form in update mode
+  S._editOnce = false;
+  if (!keepEdit) S.editingSessionId = null;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('nb-'+page)?.classList.add('active');
   const wrap = document.getElementById('page-wrap');
@@ -7262,11 +7285,11 @@ function navigate(page) {
     wrap.innerHTML = builder();
   } catch(err) {
     console.error('navigate(' + page + ') error:', err);
-    wrap.innerHTML = '<div class="card" style="padding:2rem;color:#dc2626">⚠️ Page error: ' + err.message + '</div>';
+    wrap.innerHTML = '<div class="card" style="padding:2rem;color:#dc2626">⚠️ Page error: ' + escHtml(err.message) + '</div>';
     return;
   }
 
-  if (page === 'capture') initCapture();
+  if (page === 'capture') { initCapture(); if (S.editingSessionId) loadSessionIntoForm(); }
   if (page === 'progress') renderProgress();
   if (page === 'all-sessions') initFilters();
   if (page === 'evidence-lib') { evLibInitDrop(); S.pendingEvidenceFiles = []; }
@@ -7285,16 +7308,16 @@ function mentorDashboard() {
 
   return `
   <div class="page-header green">
-    <h1>Welcome, ${u.name.split(' ')[0]}! 🌱</h1>
+    <h1>Welcome, ${escHtml(u.name.split(' ')[0])}! 🌱</h1>
     <p>Track your mentees' journey and capture their monthly progress.</p>
-    <span class="pill pill-gold">${thisMonth} ${CONFIG.year}</span>
+    <span class="pill pill-gold">${escHtml(thisMonth)} ${escHtml(CONFIG.year)}</span>
   </div>
   ${CONFIG.apiUrl === 'DEMO' ? '<div style="background:#fef6e8;border:1px solid var(--gold-mid);border-radius:var(--r-sm);padding:10px 16px;font-size:13px;color:var(--gold-dark);font-weight:700;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;">⚡ Demo Mode — data saves to this browser only. Connect Google Sheets in ⚙️ Admin to share across all mentors.</div>' : ''}
   <div class="stats-grid">
-    <div class="stat g"><div class="stat-lbl">My Mentees</div><div class="stat-val">${myMentees.length}</div><div class="stat-sub">Active ${CONFIG.year}</div></div>
-    <div class="stat o"><div class="stat-lbl">Sessions Captured</div><div class="stat-val">${mySessions.length}</div><div class="stat-sub">Total ${CONFIG.year}</div></div>
-    <div class="stat t"><div class="stat-lbl">${thisMonth} Sessions</div><div class="stat-val">${doneThis}</div><div class="stat-sub">of ${myMentees.length} due</div></div>
-    <div class="stat p"><div class="stat-lbl">Evidence Filed</div><div class="stat-val">${withEvid}</div><div class="stat-sub">With files linked</div></div>
+    <div class="stat g"><div class="stat-lbl">My Mentees</div><div class="stat-val">${myMentees.length}</div><div class="stat-sub">Active ${escHtml(CONFIG.year)}</div></div>
+    <div class="stat o"><div class="stat-lbl">Sessions Captured</div><div class="stat-val">${mySessions.length}</div><div class="stat-sub">Total ${escHtml(CONFIG.year)}</div></div>
+    <div class="stat t"><div class="stat-lbl">${escHtml(thisMonth)} Sessions</div><div class="stat-val">${escHtml(doneThis)}</div><div class="stat-sub">of ${myMentees.length} due</div></div>
+    <div class="stat p"><div class="stat-lbl">Evidence Filed</div><div class="stat-val">${escHtml(withEvid)}</div><div class="stat-sub">With files linked</div></div>
   </div>
   <div class="g2">
     <div class="card">
@@ -7304,8 +7327,8 @@ function mentorDashboard() {
           const cnt = mySessions.filter(s=>s.month===m).length;
           const curr = m===thisMonth, past = i<new Date().getMonth();
           return `<div class="m-tile ${curr?'curr':''} ${cnt>0&&!curr?'done':''}">
-            <div class="mn">${m.substring(0,3)}</div>
-            <div class="mb">${cnt>0?`<span class="badge bg">✓${cnt}</span>`:curr?`<span class="badge bo">Due</span>`:past?`<span class="badge bgr">—</span>`:`<span class="badge bgr">·</span>`}</div>
+            <div class="mn">${escHtml(m.substring(0,3))}</div>
+            <div class="mb">${cnt>0?`<span class="badge bg">✓${escHtml(cnt)}</span>`:curr?`<span class="badge bo">Due</span>`:past?`<span class="badge bgr">—</span>`:`<span class="badge bgr">·</span>`}</div>
           </div>`;
         }).join('')}
       </div>
@@ -7328,7 +7351,7 @@ function mentorDashboard() {
            ['10 min','Preview — prepare for next session']
           ].map(([t,l])=>`<div class="check-item">
           <div class="chkbox" onclick="this.classList.toggle('ticked');this.textContent=this.classList.contains('ticked')?'✓':''"></div>
-          <div class="chk-lbl"><strong>${t}</strong> — ${l}</div>
+          <div class="chk-lbl"><strong>${escHtml(t)}</strong> — ${escHtml(l)}</div>
         </div>`).join('')}
       </div>
     </div>
@@ -7371,15 +7394,15 @@ function adminDashboard() {
   <div class="coord-banner">👑 Coordinator View — Full programme visibility across all mentors and mentees.</div>
   <div class="page-header gold">
     <h1>Programme Overview</h1>
-    <p>All mentors · All mentees · All sessions · ${CONFIG.year}</p>
-    <span class="pill pill-white">Refreshed ${new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}</span>
+    <p>All mentors · All mentees · All sessions · ${escHtml(CONFIG.year)}</p>
+    <span class="pill pill-white">Refreshed ${escHtml(new Date().toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'}))}</span>
   </div>
   ${CONFIG.apiUrl === 'DEMO' ? '<div style="background:#fef6e8;border:1px solid var(--gold-mid);border-radius:var(--r-sm);padding:10px 16px;font-size:13px;color:var(--gold-dark);font-weight:700;margin-bottom:1.5rem">⚡ Demo Mode — connect Google Sheets in ⚙️ Admin to share data across devices.</div>' : ''}
   <div class="stats-grid">
     <div class="stat g"><div class="stat-lbl">Mentors</div><div class="stat-val">${allMentors.length}</div><div class="stat-sub">Active</div></div>
     <div class="stat o"><div class="stat-lbl">Mentees</div><div class="stat-val">${S.mentees.length}</div><div class="stat-sub">Registered</div></div>
-    <div class="stat t"><div class="stat-lbl">Sessions</div><div class="stat-val">${realSessions().length}</div><div class="stat-sub">${realSessions().filter(s=>s.month===thisMonth).length} in ${thisMonth}</div></div>
-    <div class="stat p"><div class="stat-lbl">Evidence Filed</div><div class="stat-val">${withEvid}</div><div class="stat-sub">With links</div></div>
+    <div class="stat t"><div class="stat-lbl">Sessions</div><div class="stat-val">${realSessions().length}</div><div class="stat-sub">${realSessions().filter(s=>s.month===thisMonth).length} in ${escHtml(thisMonth)}</div></div>
+    <div class="stat p"><div class="stat-lbl">Evidence Filed</div><div class="stat-val">${escHtml(withEvid)}</div><div class="stat-sub">With links</div></div>
   </div>
   <div class="g2">
     <div class="card">
@@ -7387,23 +7410,23 @@ function adminDashboard() {
       ${gradeStats.map(g=>`
       <div style="margin-bottom:1rem">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:13px;font-weight:800;color:var(--mid)">${g.grade}</span>
-          <span style="font-size:12px;color:var(--light)">${g.sessions} sessions · ${g.mentees} mentees</span>
+          <span style="font-size:13px;font-weight:800;color:var(--mid)">${escHtml(g.grade)}</span>
+          <span style="font-size:12px;color:var(--light)">${escHtml(g.sessions)} sessions · ${escHtml(g.mentees)} mentees</span>
         </div>
         <div class="prog-wrap"><div class="prog-fill" style="width:${g.mentees>0?Math.min(100,Math.round(g.sessions/(g.mentees*12)*100)):0}%"></div></div>
       </div>`).join('')}
     </div>
     <div class="card">
-      <div class="card-title" style="margin-bottom:1rem">👤 Mentor Activity — ${thisMonth}</div>
+      <div class="card-title" style="margin-bottom:1rem">👤 Mentor Activity — ${escHtml(thisMonth)}</div>
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Mentor</th><th>Mentees</th><th>Total Sessions</th><th>${thisMonth}</th><th>Status</th>
+            <th>Mentor</th><th>Mentees</th><th>Total Sessions</th><th>${escHtml(thisMonth)}</th><th>Status</th>
           </tr></thead>
           <tbody>
           ${mentorStats.length ? mentorStats.map(m=>`<tr>
-            <td><div class="av-row"><div class="av sm">${initials(m.name)}</div>${m.name}</div></td>
-            <td>${m.mentees}</td><td>${m.sessions}</td><td>${m.thisMonth}</td>
+            <td><div class="av-row"><div class="av sm">${escHtml(initials(m.name))}</div>${escHtml(m.name)}</div></td>
+            <td>${escHtml(m.mentees)}</td><td>${escHtml(m.sessions)}</td><td>${escHtml(m.thisMonth)}</td>
             <td>${m.thisMonth>=m.mentees&&m.mentees>0?'<span class="badge bg">✓ On track</span>':m.thisMonth>0?'<span class="badge bo">Partial</span>':'<span class="badge bgr">Pending</span>'}</td>
           </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--light)">No mentors yet</td></tr>'}
           </tbody>
@@ -7437,6 +7460,7 @@ function capturePage() {
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-status">Not saved yet</span>
   </div>
+  <div id="edit-banner" class="edit-banner" style="display:none"></div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('t-details',this)">📋 Session Details</button>
     <button class="tab" onclick="switchTab('t-academic',this)">📚 Academic Progress</button>
@@ -7452,28 +7476,28 @@ function capturePage() {
           <label>Mentee <span class="req">*</span></label>
           <select id="f-mentee" onchange="onMenteeChange()">
             <option value="">— Select Mentee —</option>
-            ${myMentees.map(m=>`<option value="${m.id}" data-grade="${m.grade}" data-school="${m.school}" data-name="${m.name}">${m.name} (${m.grade})</option>`).join('')}
+            ${myMentees.map(m=>`<option value="${escHtml(m.id)}" data-grade="${escHtml(m.grade)}" data-school="${escHtml(m.school)}" data-name="${escHtml(m.name)}">${escHtml(m.name)} (${escHtml(m.grade)})</option>`).join('')}
           </select>
         </div>
         <div class="fgrp">
           <label>Grade <span class="req">*</span></label>
           <select id="f-grade" onchange="onGradeChange()">
             <option value="">— Select Grade —</option>
-            ${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${g}</option>`).join('')}
+            ${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${escHtml(g)}</option>`).join('')}
           </select>
         </div>
         <div class="fgrp">
           <label>School</label>
-          <select id="f-school">
+          <select id="f-school" onchange="refreshSessionContext()">
             <option value="">— Select School —</option>
-            ${SCHOOLS.map(s=>`<option>${s}</option>`).join('')}
+            ${SCHOOLS.map(s=>`<option>${escHtml(s)}</option>`).join('')}
           </select>
         </div>
         <div class="fgrp">
           <label>Session Month <span class="req">*</span></label>
           <select id="f-month" onchange="showMonthTopic()">
             <option value="">— Select Month —</option>
-            ${MONTHS.map(m=>`<option ${m===MONTHS[new Date().getMonth()]?'selected':''}>${m}</option>`).join('')}
+            ${MONTHS.map(m=>`<option ${m===MONTHS[new Date().getMonth()]?'selected':''}>${escHtml(m)}</option>`).join('')}
           </select>
         </div>
         <div class="fgrp s2">
@@ -7486,8 +7510,8 @@ function capturePage() {
             </div>
             <div class="chip-dropdown" id="type-dropdown">
               ${SESSION_TYPES.map(t=>`
-              <div class="chip-option" id="opt-${t.replace(/[^a-z]/gi,'_')}" onclick="toggleSessionType('${t}',event)">
-                <span class="co-check"></span>${t}
+              <div class="chip-option" id="opt-${escHtml(t.replace(/[^a-z]/gi,'_'))}" onclick="toggleSessionType('${jsq(t)}',event)">
+                <span class="co-check"></span>${escHtml(t)}
               </div>`).join('')}
             </div>
           </div>
@@ -7499,18 +7523,19 @@ function capturePage() {
         <div class="fgrp">
           <label>Format</label>
           <select id="f-format">
-            ${['In-Person','Video Call','Phone Call','WhatsApp','WhatsApp Group'].map(f=>`<option>${f}</option>`).join('')}
+            ${['In-Person','Video Call','Phone Call','WhatsApp','WhatsApp Group'].map(f=>`<option>${escHtml(f)}</option>`).join('')}
           </select>
         </div>
         <div class="fgrp">
           <label>Duration</label>
           <select id="f-duration">
-            ${['30 minutes','45 minutes','60 minutes','75 minutes','90 minutes','2 hours'].map(d=>`<option>${d}</option>`).join('')}
+            ${['30 minutes','45 minutes','60 minutes','75 minutes','90 minutes','2 hours'].map(d=>`<option>${escHtml(d)}</option>`).join('')}
           </select>
         </div>
       </div>
       <div id="month-topic-hint" style="display:none;margin-top:1rem"></div>
       <div id="existing-session-hint" style="display:none;margin-top:.8rem;background:#FEF6E8;color:#92400E;border:1px solid #F5D9A8;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.5"></div>
+        <div id="waiting-evidence-hint" class="waiting-hint" style="display:none"></div>
     </div>
 
     <div class="card">
@@ -7542,7 +7567,7 @@ function capturePage() {
         <div class="fgrp s2">
           <label>Overall Wellbeing</label>
           <div class="wb-row">
-            ${WELLBEING_OPTS.map(w=>`<button class="wb-btn" onclick="setWellbeing('${w.e} ${w.l}',this)">${w.e} ${w.l}</button>`).join('')}
+            ${WELLBEING_OPTS.map(w=>`<button class="wb-btn" onclick="setWellbeing('${jsq(w.e)} ${jsq(w.l)}',this)">${escHtml(w.e)} ${escHtml(w.l)}</button>`).join('')}
           </div>
         </div>
 
@@ -7552,6 +7577,7 @@ function capturePage() {
 
   <!-- ACADEMIC TAB -->
   <div id="t-academic" style="display:none">
+    <div class="ctx-strip"></div>
     <div class="card">
       <div class="card-title" style="margin-bottom:1rem">📚 Academic Progress</div>
 
@@ -7626,8 +7652,10 @@ function capturePage() {
 
   <!-- EVIDENCE TAB -->
   <div id="t-evidence" style="display:none">
+    <div class="ctx-strip"></div>
     <div class="card">
       <div class="card-title" style="margin-bottom:.8rem">📎 Session Evidence</div>
+      <div id="ev-attached" style="display:none"></div>
       <p style="font-size:13px;color:var(--light);margin-bottom:1rem">Upload files locally or paste a Google Drive folder link for evidence stored in the cloud.</p>
       <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
         <div style="font-size:38px;margin-bottom:8px">📁</div>
@@ -7650,10 +7678,10 @@ function capturePage() {
   </div>
 
   <div style="margin-top:.5rem">
-    <button class="btn btn-primary btn-full" onclick="this.disabled=true;submitSession();setTimeout(()=>this.disabled=false,2500)">💾 Save Session</button>
+    <button class="btn btn-primary btn-full" id="save-btn" onclick="this.disabled=true;submitSession();setTimeout(()=>this.disabled=false,2500)">💾 Save Session</button>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:1.5rem;padding-top:1rem;border-top:1px dashed var(--border)">
       <button class="btn btn-outline btn-sm" onclick="submitAndExport()">📥 Save &amp; Export Excel</button>
-      <button class="btn btn-ghost btn-sm" onclick="navigate('capture')">🗑️ Clear</button>
+      <button class="btn btn-ghost btn-sm" id="clear-btn" onclick="navigate('capture')">🗑️ Clear</button>
     </div>
   </div>`;
 }
@@ -7682,7 +7710,7 @@ function renderTypeChips() {
     inner.innerHTML = '<span style="color:var(--light);font-size:13px" id="type-placeholder">Click to select session type(s)…</span>';
   } else {
     inner.innerHTML = S.selectedSessionTypes.map(t =>
-      `<span class="chip">${t}<button class="chip-x" onclick="removeType('${t}',event)">×</button></span>`
+      `<span class="chip">${escHtml(t)}<button class="chip-x" onclick="removeType('${jsq(t)}',event)">×</button></span>`
     ).join('');
   }
   // Update dropdown checkboxes
@@ -7725,12 +7753,13 @@ function initCapture() {
     dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
     dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('drag');handleFileList(e.dataTransfer.files)});
   }
+  refreshSessionContext();
 }
 
 function onMenteeChange() {
   const sel = document.getElementById('f-mentee');
   const opt = sel.options[sel.selectedIndex];
-  if (!opt.value) return;
+  if (!opt.value) { refreshSessionContext(); return; }
 
   // Set grade — add option dynamically if not already in the list
   const grade  = opt.getAttribute('data-grade') || '';
@@ -7757,6 +7786,7 @@ function onMenteeChange() {
     schoolEl.value = school;
   }
 
+  refreshSessionContext();
   showMonthTopic();
   loadMenteeSubjects(opt.value);
 
@@ -7890,19 +7920,176 @@ function describeExisting(ex) {
   return (ex.count > 1 ? ex.count + ' sessions' : 'a session') + ' saved for ' + s.month +
          ' (latest ' + plainDate(String(s.date || '')) + ', by ' + (s.mentorName || 'someone') + ')';
 }
-// An early warning, shown as soon as a mentee and month that already have a session are chosen
+// Evidence filed ahead of the session (the Evidence Library's evidence-only record) for this mentee and month, when
+// the month has no session yet: saving the session completes THAT record, so report and notes stay on one session.
+function waitingEvidenceFor(menteeId, month) {
+  if (!menteeId || !month || !S.currentUser) return null;
+  if (existingSessionFor(menteeId, month)) return null;          // a session is already there: evidence belongs to it
+  return S.sessions.find(function(s) {
+    return isEvidenceOnly(s) && s.menteeId === menteeId && s.month === month && s.mentorId === S.currentUser.id;
+  }) || null;
+}
+
+// The mentee, grade and school chosen on Session Details, repeated at the top of the other tabs
+function refreshSessionContext() {
+  const sel = document.getElementById('f-mentee');
+  const opt = sel && sel.options[sel.selectedIndex];
+  const name   = opt && opt.value ? (opt.getAttribute('data-name') || opt.textContent || '') : '';
+  let grade    = (document.getElementById('f-grade')  || {}).value || '';
+  const school = (document.getElementById('f-school') || {}).value || '';
+  if (/^\d+$/.test(grade)) grade = 'Grade ' + grade;
+  const html = !name
+    ? '<span class="ctx-empty">👤 Choose a mentee on the Session Details tab — their name, grade and school will show here.</span>'
+    : '<span class="ctx-name">👤 ' + escHtml(name) + '</span>' +
+      (grade  ? '<span class="ctx-chip">🎓 ' + escHtml(grade)  + '</span>' : '') +
+      (school ? '<span class="ctx-chip">🏫 ' + escHtml(school) + '</span>' : '');
+  document.querySelectorAll('.ctx-strip').forEach(function(el) { el.innerHTML = html; });
+}
+
+// An early note, shown as soon as a mentee and month are chosen: a session already saved (amber), or evidence
+// filed ahead of the session that this save will complete (green)
 function showExistingSessionHint() {
-  const el = document.getElementById('existing-session-hint');
+  const el   = document.getElementById('existing-session-hint');
+  const wait = document.getElementById('waiting-evidence-hint');
+  const att  = document.getElementById('ev-attached');
   if (!el) return;
+  const hide = function(e) { if (e) e.style.display = 'none'; };
+  if (S.editingSessionId) { hide(el); hide(wait); return; }       // updating one session: nothing to warn about
   const menteeId = document.getElementById('f-mentee')?.value;
   const month    = document.getElementById('f-month')?.value;
+  const m  = S.mentees.find(function(mm) { return mm.id === menteeId; });
+  const nm = escHtml((m && m.name) || 'This mentee');
   const ex = existingSessionFor(menteeId, month);
-  if (!ex) { el.style.display = 'none'; return; }
-  const m = S.mentees.find(function(mm) { return mm.id === menteeId; });
-  el.innerHTML = '⚠️ <strong>' + escHtml((m && m.name) || 'This mentee') + '</strong> already has ' + escHtml(describeExisting(ex)) +
-                 '. Every save adds a NEW session — only save again if this is a genuinely separate session.';
-  el.style.display = 'block';
+  if (ex) {
+    el.innerHTML = '⚠️ <strong>' + nm + '</strong> already has ' + escHtml(describeExisting(ex)) +
+      '. Every save adds a NEW session — to add to the saved one instead, use ✏️ Update.' +
+      (canEditSession(ex.latest) ? ' <button class="row-edit" style="margin-left:6px" onclick="editSession(\'' + jsq(ex.latest.id) + '\')">✏️ Update that session</button>' : '');
+    el.style.display = 'block';
+  } else hide(el);
+  const w = ex ? null : waitingEvidenceFor(menteeId, month);
+  if (wait) {
+    if (w) {
+      wait.innerHTML = '📎 <strong>' + nm + '</strong> has evidence waiting for ' + escHtml(month) + (w.evidenceDesc ? ' (' + escHtml(w.evidenceDesc) + ')' : '') +
+        '. When you save this session, that evidence becomes part of it.';
+      wait.style.display = 'block';
+    } else hide(wait);
+  }
+  if (att) { if (w) renderAttachedEvidence(w); else { att.style.display = 'none'; att.innerHTML = ''; } }
 }
+
+// What is already filed on a session, shown on the Evidence tab so nobody uploads it twice
+function renderAttachedEvidence(s) {
+  const el = document.getElementById('ev-attached');
+  if (!el) return;
+  const link  = String((s && s.evidenceFolderUrl) || '');
+  const parts = String((s && s.driveFileUrls) || '').split(',').map(function(t) { return t.trim(); });
+  const names = parts.filter(function(t) { return t.indexOf('sent:') === 0; }).map(function(t) { return t.slice(5); });
+  const desc  = String((s && s.evidenceDesc) || '');
+  if (!link && !names.length && !desc) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  let h = '<div class="attached-title">📎 Already filed with this session</div>';
+  if (isHttpUrl(link)) h += '<div><a href="' + escHtml(link) + '" target="_blank" rel="noopener">Open the latest evidence in Google Drive</a></div>';
+  else if (link)       h += '<div>' + escHtml(link.substring(0, 70)) + '</div>';
+  if (names.length)    h += '<div>Sent to Drive from this device: ' + names.map(escHtml).join(', ') + '</div>';
+  if (desc)            h += '<div class="attached-desc">' + escHtml(desc) + '</div>';
+  h += '<div class="attached-note">Anything you add below joins this same session.</div>';
+  el.innerHTML = h; el.style.display = 'block';
+}
+
+// ── ✏️ Update: open a saved session in the capture form and keep adding to it ──
+// You may update exactly the sessions in your own list (a mentor their own, a lead their team's, the Co-Ordinator view all),
+// including evidence-only records, which become real sessions once the session details are added.
+function canEditSession(s) {
+  return !!s && scopedEvidenceRecords().indexOf(s) !== -1;
+}
+function editSession(sessionId) {
+  const s = S.sessions.find(function(x) { return String(x.id) === String(sessionId); });
+  if (!s) { toast('That session is no longer in the list.'); return; }
+  if (!canEditSession(s)) { toast('You can only update sessions from your own list.'); return; }
+  dismissUndoBanner();
+  S.editReturn = (S.currentPage && S.currentPage !== 'capture') ? S.currentPage : (isFullAdmin() ? 'all-sessions' : 'my-sessions');
+  S.editingSessionId = s.id;
+  S._editOnce = true;
+  navigate('capture');
+}
+function cancelEdit() {
+  const back = S.editReturn || (isFullAdmin() ? 'all-sessions' : 'my-sessions');
+  S.editingSessionId = null;
+  navigate(back);
+}
+function reloadEdit() { S._editOnce = true; navigate('capture'); }          // "Discard changes": reload what is saved
+
+function loadSessionIntoForm() {
+  const s = S.sessions.find(function(x) { return String(x.id) === String(S.editingSessionId); });
+  if (!s) { S.editingSessionId = null; return; }
+  const waiting = isEvidenceOnly(s);
+  const val  = function(id, v) { const el = document.getElementById(id); if (el) el.value = (v == null ? '' : v); };
+  const pick = function(id, v) {             // set a drop-down, adding the option if this session used a value that is not listed
+    const el = document.getElementById(id); v = String(v == null ? '' : v);
+    if (!el || !v) return;
+    if (!Array.from(el.options).some(function(o) { return o.value === v; })) {
+      const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o);
+    }
+    el.value = v;
+  };
+  // the mentee is fixed: an update never moves a session to another mentee
+  const sel = document.getElementById('f-mentee');
+  if (!Array.from(sel.options).some(function(o) { return o.value === s.menteeId; })) {
+    const o = document.createElement('option');
+    o.value = s.menteeId; o.textContent = s.menteeName || 'Mentee'; o.setAttribute('data-name', s.menteeName || '');
+    sel.appendChild(o);
+  }
+  sel.value = s.menteeId; sel.disabled = true;
+  pick('f-grade', s.grade); pick('f-school', s.school); pick('f-month', s.month);
+  val('f-date', plainDate(String(s.date || ''))); pick('f-format', s.format); pick('f-duration', s.duration);
+  S.selectedSessionTypes = String(s.sessionTypes || '').split(',').map(function(t) { return t.trim(); }).filter(function(t) { return t && t !== 'Evidence Upload'; });
+  renderTypeChips();
+  val('f-checkin', s.checkinNotes); val('f-school-update', s.schoolUpdate); val('f-focus', s.focusNotes);
+  val('f-actions', s.actionItems);  val('f-next', s.nextSession);
+  setStar('stars-eng',  parseInt(s.engagementRating, 10) || 0);
+  setStar('stars-qual', parseInt(s.qualityRating, 10) || 0);
+  S.selectedWellbeing = s.wellbeing || '';
+  document.querySelectorAll('.wb-btn').forEach(function(b) { b.classList.toggle('sel', !!s.wellbeing && b.textContent.trim() === String(s.wellbeing).trim()); });
+
+  // Academic Progress: this session's own marks and goals (a session with none starts from the mentee's last saved marks)
+  let rows = [];
+  try { rows = JSON.parse(s.subjects || '[]'); } catch (e) { rows = []; }
+  rows = Array.isArray(rows) ? rows.filter(function(r) { return r && String(r.subject || '').trim(); }) : [];
+  const tbody = document.getElementById('subj-tbody');
+  if (tbody) tbody.innerHTML = '';
+  val('ac-goal-short', s.goalShort); val('ac-goal-long', s.goalLong);
+  if (rows.length) {
+    rows.forEach(function(r) { addSubjectRow(r.subject, r.prevMark, r.t1Actual, r.t1Goal, r.t2Actual, r.t2Goal, r.t3Actual, r.t3Goal, r.t4Actual, r.t4Goal); });
+    S.subjectsFor = s.menteeId;
+    const note = document.getElementById('ac-source-note');
+    if (note) { note.innerHTML = '📋 Showing the marks and goals saved with this session. Change what you need, then save.'; note.style.display = 'block'; }
+    updateAcademicAverages();
+  } else {
+    S.subjectsFor = null;
+    loadMenteeSubjects(s.menteeId);
+  }
+
+  // Evidence: what is already filed stays; new files and notes are added to it
+  const link = String(s.evidenceFolderUrl || '');
+  val('f-drive-link', isFolderLink(link) ? link : '');
+  const dh = document.getElementById('drive-link-hint'); if (dh) dh.style.display = 'none';
+  val('f-evid-desc', s.evidenceDesc);
+  renderAttachedEvidence(s);
+
+  const banner = document.getElementById('edit-banner');
+  if (banner) {
+    const nm = escHtml(s.menteeName || 'this mentee'), mo = escHtml(s.month || ''), when = plainDate(String(s.date || ''));
+    banner.innerHTML = (waiting
+      ? '📎 <span>Adding the session to the evidence you filed for <strong>' + nm + '</strong> (' + mo + '). Fill in the session details and save — the evidence stays with this session.</span>'
+      : '✏️ <span>Updating <strong>' + nm + '</strong>’s ' + mo + ' session' + (when ? ' (' + escHtml(when) + ')' : '') + '. Changes are saved to this same session — nothing new is created, and evidence already filed stays.</span>') +
+      '<button class="edit-cancel" onclick="cancelEdit()">✕ Cancel</button>';
+    banner.style.display = 'flex';
+  }
+  const sb = document.getElementById('save-btn');  if (sb) sb.textContent = waiting ? '💾 Save Session' : '💾 Save Changes';
+  const cb = document.getElementById('clear-btn'); if (cb) { cb.textContent = '↺ Discard changes'; cb.setAttribute('onclick', 'reloadEdit()'); }
+  showMonthTopic();
+  refreshSessionContext();
+}
+
 // Say exactly which required fields are missing, go to them, and outline them
 function flagMissingFields(missing) {
   const detailsBtn = document.querySelector('.tab');          // the Save button is visible on every tab; the fields are not
@@ -7916,7 +8103,7 @@ function flagMissingFields(missing) {
   toast('⚠️ Still needed: ' + missing.map(function(m) { return m.label; }).join(', ') + '.' + typesNote, 7000);
 }
 
-function onGradeChange() { showMonthTopic(); }
+function onGradeChange() { refreshSessionContext(); showMonthTopic(); }
 
 function showMonthTopic() {
   showExistingSessionHint();
@@ -7928,7 +8115,7 @@ function showMonthTopic() {
     const idx = MONTHS.indexOf(month);
     const topic = MONTH_TOPICS[grade][idx];
     if (topic && topic !== '—') {
-      hint.innerHTML = `<span class="pill pill-gold" style="font-size:12px">📌 Recommended for ${grade} in ${month}: ${topic}</span>`;
+      hint.innerHTML = `<span class="pill pill-gold" style="font-size:12px">📌 Recommended for ${escHtml(grade)} in ${escHtml(month)}: ${escHtml(topic)}</span>`;
       hint.style.display = 'block';
     } else hint.style.display = 'none';
   }
@@ -7963,6 +8150,7 @@ function switchTab(id, btn) {
       }
     }
   }
+  refreshSessionContext();
 }
 
 function setStar(gid, val) {
@@ -7992,7 +8180,7 @@ function addSubjectRow(name, prev, t1a, t1g, t2a, t2g, t3a, t3g, t4a, t4g) {
   function varSpan(actual, goal, cls) {
     var v=variance(actual,goal);
     var col = v===''?'':parseFloat(v)>=0?'color:#16a34a':'color:#dc2626';
-    return '<span class="'+cls+'" style="display:block;text-align:center;font-weight:700;font-size:13px;'+col+'">'+v+'</span>';
+    return '<span class="'+escHtml(cls)+'" style="display:block;text-align:center;font-weight:700;font-size:13px;'+col+'">'+escHtml(v)+'</span>';
   }
   const n = function(v){ return '<input type="number" min="0" max="100" step="0.1" value="'+escHtml(v)+'" placeholder="%" style="width:52px;text-align:center" oninput="updateAcademicAverages()">'; };
 
@@ -8084,7 +8272,7 @@ function handleFileList(files) {
     const icon = f.type.startsWith('image/')? '🖼️': f.type==='application/pdf'? '📄':'📝';
     const el = document.createElement('div');
     el.className='file-chip'; el.id='fc-'+S.pendingFiles.length;
-    el.innerHTML=`<span style="font-size:18px">${icon}</span><span class="fc-name">${f.name} <span style="color:var(--light)">(${(f.size/1024).toFixed(0)}KB)</span></span><button class="fc-rm" onclick="this.closest('.file-chip').remove()">✕</button>`;
+    el.innerHTML=`<span style="font-size:18px">${escHtml(icon)}</span><span class="fc-name">${escHtml(f.name)} <span style="color:var(--light)">(${(f.size/1024).toFixed(0)}KB)</span></span><button class="fc-rm" onclick="this.closest('.file-chip').remove()">✕</button>`;
     document.getElementById('files-list')?.appendChild(el);
   });
 }
@@ -8146,22 +8334,34 @@ function submitSession() {
   const opt = menteeEl.options[menteeEl.selectedIndex];
   const menteeName = opt.getAttribute('data-name') || '';
 
-  // Every save adds a NEW session and it cannot be undone in the portal, so ask before a likely repeat
-  const repeat = existingSessionFor(menteeId, month);
-  if (repeat && !confirm('⚠️ ' + menteeName + ' already has ' + describeExisting(repeat) + '.\n\n' +
-        'Saving now adds ANOTHER session, and a saved session cannot be edited or deleted in the portal.\n\n' +
-        'Press OK only if this really is a separate session. Otherwise press Cancel.')) {
-    sessionSubmitLock = false;
-    toast('Not saved — nothing was added.');
-    return null;
+  // Which record does this save go to? ✏️ Update (an existing session), evidence filed ahead of the session
+  // (completed here, so the report and the notes stay on ONE session), or a brand-new session.
+  const isUpdate = !!S.editingSessionId;
+  let target = null, adopted = false;
+  if (isUpdate) {
+    target = S.sessions.find(function(x) { return String(x.id) === String(S.editingSessionId); }) || null;
+    if (!target) {
+      sessionSubmitLock = false; S.editingSessionId = null;
+      toast('That session is no longer in the list — nothing was saved.');
+      return null;
+    }
+  } else {
+    // A new save adds a NEW session, so ask before a likely repeat
+    const repeat = existingSessionFor(menteeId, month);
+    if (repeat && !confirm('⚠️ ' + menteeName + ' already has ' + describeExisting(repeat) + '.\n\n' +
+          'Saving now adds ANOTHER session. To add to the one that is already saved, press Cancel and tap ✏️ Update.\n\n' +
+          'Press OK only if this really is a separate session.')) {
+      sessionSubmitLock = false;
+      toast('Not saved — nothing was added.');
+      return null;
+    }
+    target  = repeat ? null : waitingEvidenceFor(menteeId, month);
+    adopted = !!target;
   }
 
-  const session = {
-    id: 's' + Date.now(),
+  const fields = {
     menteeId,
     menteeName,
-    mentorId:   S.currentUser.id,
-    mentorName: S.currentUser.name,
     grade,
     school:          document.getElementById('f-school')?.value||'',
     month,
@@ -8181,35 +8381,56 @@ function submitSession() {
     // f-goal-* — elements that don't exist — so every session saved with blank goals.
     goalShort:       (document.getElementById('ac-goal-short') || document.getElementById('f-goal-short'))?.value||'',
     goalLong:        (document.getElementById('ac-goal-long')  || document.getElementById('f-goal-long'))?.value||'',
-    year:             CONFIG.year,
-    evidenceFolderUrl:document.getElementById('f-drive-link')?.value||'',
     evidenceDesc:    document.getElementById('f-evid-desc')?.value||'',
     subjects:        JSON.stringify(getSubjectsData()),
   };
-
-  S.sessions.push(session);
+  const typedLink = document.getElementById('f-drive-link')?.value||'';
+  let session;
+  if (target) {
+    // A file already filed on this session is never replaced by a pasted folder link
+    const kept = String(target.evidenceFolderUrl || '');
+    fields.evidenceFolderUrl = (kept && !isFolderLink(kept)) ? kept : (typedLink || kept);
+    // Completing waiting evidence: the description filed with it stays, and anything typed now is added to it.
+    // (In ✏️ Update the box is pre-filled, so empty means it was cleared on purpose.)
+    if (!isUpdate) {
+      const was = String(target.evidenceDesc || ''), typed = fields.evidenceDesc;
+      fields.evidenceDesc = (typed && was && typed !== was) ? was + '; ' + typed : (typed || was);
+    }
+    const wasWaiting = isEvidenceOnly(target);
+    Object.assign(target, fields);
+    if (wasWaiting) { target.mentorId = S.currentUser.id; target.mentorName = S.currentUser.name; }   // whoever completes the session owns it
+    if (!target.year) target.year = CONFIG.year;
+    session = target;
+    logAudit(isUpdate ? 'UPDATE_SESSION' : 'COMPLETE_SESSION', 'Session', menteeName, 'session', '', '',
+             (isUpdate ? 'Updated' : 'Completed from evidence filed earlier') + ' by ' + S.currentUser.name);
+  } else {
+    fields.evidenceFolderUrl = typedLink;
+    session = Object.assign({ id: 's' + Date.now(), mentorId: S.currentUser.id, mentorName: S.currentUser.name, year: CONFIG.year }, fields);
+    S.sessions.push(session);
+  }
 
   // Persist Drive link back to the mentee record so it auto-fills next time
-  if (isHttpUrl(session.evidenceFolderUrl)) {
+  if (isFolderLink(session.evidenceFolderUrl)) {
     const mentee = S.mentees.find(m => m.id === session.menteeId);
     if (mentee) mentee.driveFolderUrl = session.evidenceFolderUrl;
   }
 
   persistState();
   setSyncStatus('syncing','Syncing…');
-  setTimeout(function(){ setSyncStatus('ok','Saved ✓'); }, 2000);
-  toast('✅ Session saved! Taking you back to your mentees…');
+  setTimeout(function(){ if (S.sheetAccess === 'denied') setSyncStatus('err','Saved on this phone — not syncing (portal key needed)'); else setSyncStatus('ok','Saved ✓'); }, 2000);
+  toast(isUpdate ? '✅ Session updated! Taking you back…' : adopted ? '✅ Session saved — the evidence you filed earlier is part of it.' : '✅ Session saved! Taking you back to your mentees…');
   // Background refresh 5 seconds after save to pick up any remote changes
   setTimeout(silentSyncOnLogin, 5000);
 
   // Sync to Google Sheets — queue offline if no connection
   if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
-    if (navigator.onLine) {
+    if (navigator.onLine && S.sheetAccess !== 'denied') {
       pushToSheets(session);
       setSyncStatus('saving','Syncing to Sheets…');
     } else {
       queueSessionOffline(session);
-      setSyncStatus('ok','Saved offline — syncs when online ✓');
+      if (S.sheetAccess === 'denied') setSyncStatus('err','Saved on this phone — not syncing (portal key needed)');
+      else setSyncStatus('ok','Saved offline — syncs when online ✓');
     }
   }
 
@@ -8231,7 +8452,10 @@ function submitSession() {
   // Take the mentor straight back to their mentee list — staying on the
   // capture form with no visible next step was the actual reported problem,
   // not just a documentation gap.
-  setTimeout(function(){ navigate(isFullAdmin() ? 'all-mentees' : 'my-mentees'); showUndoBanner(session); }, 1200);
+  const dest = isUpdate ? (S.editReturn || (isFullAdmin() ? 'all-sessions' : 'my-sessions')) : (isFullAdmin() ? 'all-mentees' : 'my-mentees');
+  const bannerMode = isUpdate ? 'updated' : (adopted ? 'completed' : 'new');
+  S.editingSessionId = null;
+  setTimeout(function(){ navigate(dest); showUndoBanner(session, bannerMode); }, 1200);
 
   return session;
 }
@@ -8244,12 +8468,7 @@ function submitAndExport() {
 async function pushToSheets(session) {
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return;
   try {
-    await fetch(CONFIG.apiUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'addSession', data: session }),
-    });
+    await scriptPost({ action: 'addSession', data: session });
     // no-cors returns opaque response - we assume success if no error thrown
   } catch(e) {
     console.warn('Sheets sync failed:', e.message);
@@ -8264,20 +8483,20 @@ function myMenteesPage() {
   return `
   <div class="page-header green">
     <h1>👥 My Mentees</h1>
-    <p>Manage your mentee portfolio for the ${CONFIG.year} programme year.</p>
+    <p>Manage your mentee portfolio for the ${escHtml(CONFIG.year)} programme year.</p>
   </div>
   <div class="card">
     <div class="card-title" style="margin-bottom:1rem">➕ Add New Mentee</div>
     <div class="fg">
       <div class="fgrp"><label>Full Name <span class="req">*</span></label><input type="text" id="nm-name" placeholder="e.g. Thembi Nkosi"></div>
       <div class="fgrp"><label>Grade <span class="req">*</span></label>
-        <select id="nm-grade"><option value="">— Select Grade —</option>${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${g}</option>`).join('')}</select>
+        <select id="nm-grade"><option value="">— Select Grade —</option>${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${escHtml(g)}</option>`).join('')}</select>
       </div>
       <div class="fgrp"><label>School</label>
-        <select id="nm-school"><option value="">— Select School —</option>${SCHOOLS.map(s=>`<option>${s}</option>`).join('')}</select>
+        <select id="nm-school"><option value="">— Select School —</option>${SCHOOLS.map(s=>`<option>${escHtml(s)}</option>`).join('')}</select>
       </div>
       <div class="fgrp"><label>Gender</label>
-        <select id="nm-gender">${['Female','Male','Non-binary','Prefer not to say'].map(g=>`<option>${g}</option>`).join('')}</select>
+        <select id="nm-gender">${['Female','Male','Non-binary','Prefer not to say'].map(g=>`<option>${escHtml(g)}</option>`).join('')}</select>
       </div>
     </div>
     <button class="btn btn-primary" style="margin-top:1rem" onclick="addMentee()">➕ Add Mentee</button>
@@ -8291,13 +8510,13 @@ function myMenteesPage() {
       <tbody>${myMentees.map(m=>{
         const cnt = realSessions().filter(s=>s.menteeId===m.id).length;
         return `<tr>
-          <td><div class="av-row"><div class="av sm">${initials(m.name)}</div><strong>${m.name}</strong></div></td>
-          <td><span class="badge bg">${m.grade}</span></td>
-          <td>${m.school||'—'}</td><td>${m.gender||'—'}</td>
-          <td><span class="badge bo">${cnt} session${cnt!==1?'s':''}</span></td>
+          <td><div class="av-row"><div class="av sm">${escHtml(initials(m.name))}</div><strong>${escHtml(m.name)}</strong></div></td>
+          <td><span class="badge bg">${escHtml(m.grade)}</span></td>
+          <td>${escHtml(m.school||'—')}</td><td>${escHtml(m.gender||'—')}</td>
+          <td><span class="badge bo">${escHtml(cnt)} session${cnt!==1?'s':''}</span></td>
           <td style="display:flex;gap:6px">
-            <button class="btn btn-outline btn-sm" onclick="captureFor('${m.id}')">✏️</button>
-            ${isFullAdmin() ? `<button class="btn btn-danger btn-sm" onclick="removeMentee('${m.id}')">✕</button>` : ''}
+            <button class="btn btn-outline btn-sm" onclick="captureFor('${jsq(m.id)}')">✏️</button>
+            ${isFullAdmin() ? `<button class="btn btn-danger btn-sm" onclick="removeMentee('${jsq(m.id)}')">✕</button>` : ''}
           </td></tr>`;
       }).join('')}</tbody>
     </table></div>` : `<div class="empty"><div class="ei">👥</div><h3>No mentees yet</h3><p>Add your first mentee above.</p></div>`}
@@ -8340,20 +8559,20 @@ function sessionsTable(sessions, showMentor=false, removable=false) {
   return `<div class="tbl-wrap"><table>
     <thead><tr><th>Mentee</th>${showMentor?'<th>Mentor</th>':''}<th>Grade</th><th>Month</th><th>Session Type(s)</th><th>Wellbeing</th><th>Date</th></tr></thead>
     <tbody>${sessions.map(s=>`<tr>
-      <td><strong>${s.menteeName||'—'}</strong>${mine && mine.has(s) ? `<br><button class="row-remove" onclick="removeSession('${escHtml(String(s.id))}')">🗑️ Remove</button>` : ''}</td>
-      ${showMentor?`<td>${s.mentorName||'—'}</td>`:''}
-      <td><span class="badge bg">${s.grade||'—'}</span></td>
-      <td>${s.month||'—'}</td>
-      <td style="max-width:220px">${(s.sessionTypes||'—').split(',').map(t=>`<span class="badge bo" style="margin:1px 2px">${t.trim()}</span>`).join('')}</td>
-      <td>${s.wellbeing||'—'}</td>
-      <td>${s.date||'—'}</td>
+      <td><strong>${escHtml(s.menteeName||'—')}</strong>${mine && mine.has(s) ? `<div class="row-actions"><button class="row-edit" onclick="editSession('${jsq(s.id)}')">✏️ Update</button><button class="row-remove" onclick="removeSession('${jsq(s.id)}')">🗑️ Remove</button></div>` : ''}</td>
+      ${showMentor?`<td>${escHtml(s.mentorName||'—')}</td>`:''}
+      <td><span class="badge bg">${escHtml(s.grade||'—')}</span></td>
+      <td>${escHtml(s.month||'—')}</td>
+      <td style="max-width:220px">${(s.sessionTypes||'—').split(',').map(t=>`<span class="badge bo" style="margin:1px 2px">${escHtml(t.trim())}</span>`).join('')}</td>
+      <td>${escHtml(s.wellbeing||'—')}</td>
+      <td>${escHtml(s.date||'—')}</td>
     </tr>`).join('')}
     </tbody></table></div>`;
 }
 
 function mySessionsPage() {
   const sessions = scopedSessions().reverse();
-  return `<div class="page-header green"><h1>📋 My Sessions</h1><p>All your captured sessions for ${CONFIG.year}.</p></div>
+  return `<div class="page-header green"><h1>📋 My Sessions</h1><p>All your captured sessions for ${escHtml(CONFIG.year)}.</p></div>
   <div class="card">
     <div class="card-hdr"><div class="card-title">📋 ${sessions.length} Sessions</div><button class="btn btn-gold btn-sm" onclick="exportMyData()">⬇️ Export</button></div>
     ${sessionsTable(sessions,false,true)}
@@ -8365,10 +8584,10 @@ function allSessionsPage() {
   <div class="card">
     <div class="fg" style="max-width:600px;margin-bottom:1.2rem">
       <div class="fgrp"><label>Filter by Grade</label>
-        <select id="fg-grade" onchange="filterSessions()"><option value="">All Grades</option>${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${g}</option>`).join('')}</select>
+        <select id="fg-grade" onchange="filterSessions()"><option value="">All Grades</option>${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${escHtml(g)}</option>`).join('')}</select>
       </div>
       <div class="fgrp"><label>Filter by Month</label>
-        <select id="fg-month" onchange="filterSessions()"><option value="">All Months</option>${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select>
+        <select id="fg-month" onchange="filterSessions()"><option value="">All Months</option>${MONTHS.map(m=>`<option>${escHtml(m)}</option>`).join('')}</select>
       </div>
     </div>
     <div id="filtered-sessions">${sessionsTable(realSessions().slice().reverse(),true,true)}</div>
@@ -8396,9 +8615,9 @@ function allMenteesPage() {
       <tbody>${S.mentees.length?S.mentees.map(m=>{
         const cnt=realSessions().filter(s=>s.menteeId===m.id).length;
         const mentor=S.users.find(u=>u.id===m.mentorId);
-        return `<tr><td><div class="av-row"><div class="av sm">${initials(m.name)}</div><strong>${m.name}</strong></div></td>
-          <td><span class="badge bg">${m.grade}</span></td><td>${m.school||'—'}</td>
-          <td>${mentor?.name||'—'}</td><td><span class="badge bo">${cnt}</span></td></tr>`;
+        return `<tr><td><div class="av-row"><div class="av sm">${escHtml(initials(m.name))}</div><strong>${escHtml(m.name)}</strong></div></td>
+          <td><span class="badge bg">${escHtml(m.grade)}</span></td><td>${escHtml(m.school||'—')}</td>
+          <td>${escHtml(mentor?.name||'—')}</td><td><span class="badge bo">${escHtml(cnt)}</span></td></tr>`;
       }).join(''):'<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--light)">No mentees yet</td></tr>'}
       </tbody>
     </table></div>
@@ -8411,16 +8630,16 @@ function allMenteesPage() {
 function progressPage() {
   const isAdmin = isFullAdmin();
   return `
-  <div class="page-header green"><h1>📈 Progress Tracker</h1><p>${isAdmin?'Programme-wide progress across all mentors.':'Your mentees\' progress through the ' + CONFIG.year + ' programme.'}</p></div>
+  <div class="page-header green"><h1>📈 Progress Tracker</h1><p>${escHtml(isAdmin?'Programme-wide progress across all mentors.':'Your mentees\' progress through the ' + CONFIG.year + ' programme.')}</p></div>
   <div class="card" style="margin-bottom:1rem">
     <div class="fg" style="max-width:520px">
       <div class="fgrp"><label>Mentee</label>
         <select id="pf-mentee" onchange="renderProgress()"><option value="">All Mentees</option>
-          ${(isAdmin?S.mentees:scopedMentees()).map(m=>`<option value="${m.id}">${m.name}</option>`).join('')}
+          ${(isAdmin?S.mentees:scopedMentees()).map(m=>`<option value="${escHtml(m.id)}">${escHtml(m.name)}</option>`).join('')}
         </select>
       </div>
       <div class="fgrp"><label>Grade</label>
-        <select id="pf-grade" onchange="renderProgress()"><option value="">All Grades</option>${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${g}</option>`).join('')}</select>
+        <select id="pf-grade" onchange="renderProgress()"><option value="">All Grades</option>${['Grade 9','Grade 10','Grade 11','Grade 12','Tertiary','Post Matric'].map(g=>`<option>${escHtml(g)}</option>`).join('')}</select>
       </div>
     </div>
   </div>
@@ -8444,15 +8663,15 @@ function renderProgress() {
     return `<div class="card">
       <div class="card-hdr">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <div class="av">${initials(mentee.name)}</div>
-          <div><div style="font-weight:900;font-size:16px">${mentee.name}</div>
-          <div style="font-size:12px;color:var(--light)">${mentee.grade} · ${mentee.school||''}${isAdmin?` · Mentor: ${mentor?.name||'—'}`:''}</div></div>
+          <div class="av">${escHtml(initials(mentee.name))}</div>
+          <div><div style="font-weight:900;font-size:16px">${escHtml(mentee.name)}</div>
+          <div style="font-size:12px;color:var(--light)">${escHtml(mentee.grade)} · ${escHtml(mentee.school||'')}${escHtml(isAdmin?` · Mentor: ${mentor?.name||'—'}`:'')}</div></div>
           <span class="badge bg">${msessions.length}/12 sessions</span>
-          <span class="badge ${pct>=75?'bt':pct>=50?'bo':'bgr'}">${pct}%</span>
+          <span class="badge ${pct>=75?'bt':pct>=50?'bo':'bgr'}">${escHtml(pct)}%</span>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-outline btn-sm" onclick="captureFor('${mentee.id}')">✏️ Add Session</button>
-          <button class="btn btn-ghost btn-sm" onclick="printPortfolio('${mentee.id}')">🖨️ Portfolio</button>
+          <button class="btn btn-outline btn-sm" onclick="captureFor('${jsq(mentee.id)}')">✏️ Add Session</button>
+          <button class="btn btn-ghost btn-sm" onclick="printPortfolio('${jsq(mentee.id)}')">🖨️ Portfolio</button>
         </div>
       </div>
       <div class="prog-wrap" style="margin-bottom:1.2rem"><div class="prog-fill ${pct>=75?'':'gold'}" style="width:${pct}%"></div></div>
@@ -8461,9 +8680,9 @@ function renderProgress() {
           const s=msessions.find(x=>x.month===m);
           const topic=MONTH_TOPICS[mentee.grade]?MONTH_TOPICS[mentee.grade][i]:'';
           return `<div class="m-tile ${s?'done':''} ${m===MONTHS[new Date().getMonth()]&&!s?'curr':''}">
-            <div class="mn" style="font-size:12px">${m.substring(0,3)}</div>
-            ${topic&&topic!=='—'?`<div class="mt">${topic}</div>`:''}
-            <div class="mb">${s?`<span class="badge bg" title="${s.sessionTypes||''}">✓</span>`:`<span class="badge bgr">—</span>`}</div>
+            <div class="mn" style="font-size:12px">${escHtml(m.substring(0,3))}</div>
+            ${topic&&topic!=='—'?`<div class="mt">${escHtml(topic)}</div>`:''}
+            <div class="mb">${s?`<span class="badge bg" title="${escHtml(s.sessionTypes||'')}">✓</span>`:`<span class="badge bgr">—</span>`}</div>
           </div>`;
         }).join('')}
       </div>
@@ -8521,6 +8740,26 @@ function removeUser(userId) {
   navigate('admin-panel');
 }
 
+function savePortalKey() {
+  const k = (document.getElementById('portal-key')?.value || '').trim();
+  CONFIG.portalKey = k;
+  try { if (k) localStorage.setItem('lgm_portal_key', k); else localStorage.removeItem('lgm_portal_key'); } catch {}
+  toast(k ? '✅ Portal key saved on this device' : 'Portal key removed from this device');
+  checkSheetAccess();
+  navigate('admin-panel');
+}
+function testPortalKey() {
+  const el = document.getElementById('portal-key-result'); if (!el) return;
+  el.innerHTML = '⏳ Asking the script…';
+  S.sheetAccess = undefined;
+  checkSheetAccess().then(function(res) {
+    if (!res) { el.innerHTML = '❌ Could not reach the script. Check the connection and the Web App URL above.'; return; }
+    if (typeof res.keyRequired !== 'boolean') { el.innerHTML = '⚠️ This script is older than v11, so it does not check a key yet. Deploy v11 first.'; return; }
+    el.innerHTML = 'The script ' + (res.keyRequired ? '<strong>requires</strong> a key.' : 'does <strong>not</strong> require a key yet, so anyone with its address can still use it.') +
+      " This device's key is " + (res.keyValid ? '<strong style="color:var(--green-dark)">valid ✅</strong>.' : '<strong style="color:#dc2626">' + (CONFIG.portalKey ? 'wrong ❌' : 'missing ❌') + '</strong>.');
+  });
+}
+
 function saveApiUrl() {
   const url = document.getElementById('sheets-url')?.value.trim();
   CONFIG.apiUrl = url || 'DEMO';
@@ -8549,6 +8788,7 @@ function shareDataLink() {
       mentees:  S.mentees,
       users:    S.users.map(function(u){ return { id:u.id, name:u.name, role:u.role, pin:u.pin, offboarded:u.offboarded||false }; }),
       sessions: S.sessions,
+      cfg:      CONFIG.portalKey ? { key: CONFIG.portalKey } : undefined,
       ts: Date.now()
     };
     var json = JSON.stringify(payload);
@@ -8562,8 +8802,8 @@ function shareDataLink() {
     var box = document.createElement('div');
     box.style.cssText = 'background:white;border-radius:16px;padding:1.5rem;max-width:500px;width:100%';
     box.innerHTML = '<h3 style="margin:0 0 .8rem;color:var(--green-dark);font-size:18px">&#128242; Share Data to Mobile</h3>'
-      + '<p style="font-size:13px;color:var(--mid);margin-bottom:1rem">Copy this link and open it on the mobile device. It will automatically import all data.</p>'
-      + '<textarea id="share-url-box" style="width:100%;height:80px;font-size:11px;border:1px solid #ccc;border-radius:8px;padding:8px;resize:none;word-break:break-all;box-sizing:border-box">' + url + '</textarea>'
+      + '<p style="font-size:13px;color:var(--mid);margin-bottom:1rem">Copy this link and open it on the mobile device. It will automatically import all data.' + (CONFIG.portalKey ? ' It also carries the portal key, so send it only to the person it is for.' : '') + '</p>'
+      + '<textarea id="share-url-box" style="width:100%;height:80px;font-size:11px;border:1px solid #ccc;border-radius:8px;padding:8px;resize:none;word-break:break-all;box-sizing:border-box">' + escHtml(url) + '</textarea>'
       + '<div style="display:flex;gap:8px;margin-top:.8rem;flex-wrap:wrap" id="share-btns"></div>';
 
     overlay.appendChild(box);
@@ -8643,6 +8883,7 @@ function checkImportParam() {
     if (apiUrl)   localStorage.setItem('lgm_api_url',         apiUrl);
     if (folderId) localStorage.setItem('lgm_drive_folder_id', folderId);
     if (apiKey)   localStorage.setItem('lgm_drive_api_key',   apiKey);
+    if (payload.cfg && typeof payload.cfg.key === 'string' && /^[A-Za-z0-9]{16,128}$/.test(payload.cfg.key)) localStorage.setItem('lgm_portal_key', payload.cfg.key);
     alert('✅ Data imported! The page will now reload.');
     location.reload();
   } catch(e) {
@@ -8722,7 +8963,7 @@ function hardResetAndResync() {
     driveApiKey:   CONFIG.driveApiKey,
   };
 
-  jsonpFetch(CONFIG.apiUrl + '?action=getData')
+  jsonpFetch(scriptGetUrl('getData'))
     .then(res => {
       if (!res || typeof res !== 'object') throw new Error('Sheets returned an error');
       if (res.error) throw new Error(res.error);
@@ -8788,7 +9029,7 @@ function hardResetAndResync() {
           status.style.display = 'block';
         }
       } else {
-        const msg = '❌ Reset failed: ' + err.message;
+        const msg = '❌ Reset failed: ' + escHtml(sheetErrorText(err.message));
         if (status) { status.innerHTML = msg; status.style.color = '#dc2626'; }
         toast('❌ Reset failed — see Admin Panel');
       }
@@ -8816,6 +9057,41 @@ function manualLocalWipe() {
 }
 
 // ── JSONP fetch — works cross-origin on mobile (no CORS needed) ──────────────
+// ── Portal key (script v11) ──────────────────────────────────────────────────────────────────
+// The script's address is written into this page, so anyone could use it. A key held only in the script's private settings and on the
+// team's own devices is what keeps strangers out. Until the script is told to require it, sending the key changes nothing.
+function keyQuery() { return CONFIG.portalKey ? '&key=' + encodeURIComponent(CONFIG.portalKey) : ''; }
+function scriptGetUrl(action, extra) { return CONFIG.apiUrl + '?action=' + action + (extra || '') + keyQuery(); }
+function scriptPost(body) {                                   // body: an object, or JSON text already built
+  let o = typeof body === 'string' ? JSON.parse(body) : body;
+  if (CONFIG.portalKey) o = Object.assign({ key: CONFIG.portalKey }, o);
+  return fetch(CONFIG.apiUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(o) });
+}
+function sheetErrorText(msg) {                               // a refusal, in plain words
+  return /unauthori[sz]ed/i.test(String(msg)) ? 'this device does not have the portal key (or it is wrong). Ask your Co-Ordinator for a Share Data link.' : msg;
+}
+function renderAccessBanner(denied) {
+  const old = document.getElementById('access-banner'); if (old) old.remove();
+  if (!denied) return;
+  const wrap = document.getElementById('page-wrap'); if (!wrap || !wrap.parentNode) return;
+  const el = document.createElement('div'); el.id = 'access-banner'; el.className = 'access-banner';
+  el.innerHTML = '<span>🔑 <strong>This device cannot sync with the Google Sheet yet.</strong> The script now needs a portal key. Your sessions are safe on this phone and will send once it has the key. Ask your Co-Ordinator for a Share Data link.</span>';
+  wrap.parentNode.insertBefore(el, wrap);
+}
+// Ask the script whether it needs a key and whether this device's key works, so a refusal is never silent.
+function checkSheetAccess(skipQueue) {
+  if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return Promise.resolve(null);
+  const who = S.currentUser ? '&user=' + encodeURIComponent(S.currentUser.name) : '';
+  return jsonpFetch(scriptGetUrl('status', who)).then(function(res) {
+    if (!res || typeof res !== 'object' || typeof res.keyRequired !== 'boolean') { S.sheetAccess = 'ok'; renderAccessBanner(false); return res; }   // an older script has no key check
+    const denied = res.keyRequired === true && res.keyValid !== true;
+    S.sheetAccess = denied ? 'denied' : 'ok';
+    renderAccessBanner(denied);
+    if (!denied && !skipQueue && typeof offlineQueue !== 'undefined' && offlineQueue.length && navigator.onLine) syncOfflineQueue();
+    return res;
+  }).catch(function() { return null; });
+}
+
 function jsonpFetch(url) {
   // Try regular fetch first (works on desktop)
   // If that fails with CORS, fall back to JSONP script tag
@@ -8851,7 +9127,7 @@ function resyncFromSheets() {
   if (status) { status.style.display = 'block'; status.innerHTML = '⏳ Connecting to Google Sheets…'; status.style.color = 'var(--mid)'; }
 
   // Use JSONP — works on all browsers including mobile Safari without CORS issues
-  jsonpFetch(CONFIG.apiUrl + '?action=getData')
+  jsonpFetch(scriptGetUrl('getData'))
     .then(res => {
       if (!res || typeof res !== 'object') throw new Error('Sheets returned an error');
       if (res.error) throw new Error(res.error);
@@ -8869,7 +9145,7 @@ function resyncFromSheets() {
       navigate('dashboard');
     })
     .catch(err => {
-      const msg = '❌ Resync failed: ' + err.message;
+      const msg = '❌ Resync failed: ' + escHtml(sheetErrorText(err.message));
       if (status) { status.innerHTML = msg; status.style.color = '#dc2626'; }
       toast('❌ Resync failed — see Admin Panel for details');
     });
@@ -8992,7 +9268,7 @@ function initials(name) {
 // calling .startsWith directly on a session's evidenceFolderUrl has crashed
 // the whole page render when that happened. Always route through this.
 function isHttpUrl(v) {
-  return typeof v === 'string' && v.startsWith('http');
+  return typeof v === 'string' && /^https?:\/\//i.test(v);
 }
 
 // Only Co-Ordinators have Admin Panel → Pull Sheets → Local, so the "how do I
@@ -9049,7 +9325,7 @@ function canRemoveSession(s) {
 // What the Google Sheet holds right now: a list of sessions, or null when we cannot tell (offline, no reply)
 function fetchSheetSessions() {
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return Promise.resolve(null);
-  const ask = jsonpFetch(CONFIG.apiUrl + '?action=getData').then(function(res) {
+  const ask = jsonpFetch(scriptGetUrl('getData')).then(function(res) {
     return res && Array.isArray(res.sessions) ? res.sessions : null;
   }).catch(function() { return null; });
   const patience = new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 7000); });
@@ -9106,14 +9382,19 @@ function dismissUndoBanner() {
   const el = document.getElementById('undo-banner');
   if (el) el.remove();
 }
-function showUndoBanner(s) {
+function showUndoBanner(s, mode) {
+  mode = mode || 'new';
   const wrap = document.getElementById('page-wrap');
   if (!wrap || !s) return;
   dismissUndoBanner();
+  const nm = escHtml(s.menteeName || ''), mo = escHtml(s.month || '');
+  const msg = mode === 'updated'   ? '✅ <strong>Updated:</strong> ' + nm + ' — ' + mo + '. Everything is saved to the same session.'
+            : mode === 'completed' ? '✅ <strong>Saved:</strong> ' + nm + ' — ' + mo + '. The evidence you filed earlier is part of this session.'
+            :                        '✅ <strong>Saved:</strong> ' + nm + ' — ' + mo + '. Saved by mistake?';
   const el = document.createElement('div');
   el.id = 'undo-banner'; el.className = 'undo-banner';
-  el.innerHTML = '<span>✅ <strong>Saved:</strong> ' + escHtml(s.menteeName || '') + ' — ' + escHtml(s.month || '') + '. Saved by mistake?</span>' +
-    '<button class="undo-btn" onclick="removeSession(\'' + escHtml(String(s.id)) + '\', {undo:true})">↩ Undo</button>' +
+  el.innerHTML = '<span>' + msg + '</span>' +
+    (mode === 'new' ? '<button class="undo-btn" onclick="removeSession(\'' + jsq(s.id) + '\', {undo:true})">↩ Undo</button>' : '') +
     '<button class="undo-x" onclick="dismissUndoBanner()" aria-label="Dismiss">✕</button>';
   wrap.insertBefore(el, wrap.firstChild);
   _undoTimer = setTimeout(dismissUndoBanner, 120000);
@@ -9121,7 +9402,8 @@ function showUndoBanner(s) {
 
 function sheetEvidenceUrl(sessionId) {
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return Promise.resolve('');
-  const ask = jsonpFetch(CONFIG.apiUrl + '?action=getData').then(function(res) {
+  const ask = jsonpFetch(scriptGetUrl('getData')).then(function(res) {
+    if (res && res.error) return null;                     // refused: we do not know, which is not the same as "no link"
     const rows = res && Array.isArray(res.sessions) ? res.sessions : [];
     const row  = rows.find(function(s) { return String(s.id) === String(sessionId); });
     return row && typeof row.evidenceFolderUrl === 'string' ? row.evidenceFolderUrl : '';
@@ -9236,22 +9518,22 @@ function logAudit(action, recordType, name, fieldChanged, prevValue, newValue, n
 // ═══════════════════════════════════════════════════════════════
 function importPage() {
   const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
-  const provOpts  = provinces.map(p => `<option>${p}</option>`).join('');
+  const provOpts  = provinces.map(p => `<option>${escHtml(p)}</option>`).join('');
   const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
     ? S.users.filter(function(u){ return !u.offboarded && (u.id === _cu.id || u.leadMentor === _cu.name); })
     : S.users.filter(function(u){ return !u.offboarded; });
-  const mentorOpts = _mentorPool.map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
-  const menteeList= S.mentees.filter(m=>!m.offboarded).map(m=>`<option value="${m.id}">${m.name} (${m.grade})</option>`).join('');
-  const mentorList= S.users.filter(u=>!u.offboarded).map(u=>`<option value="${u.id}">${u.name} (${u.role})</option>`).join('');
-  const traineeList=S.users.filter(u=>u.role==='trainee'||u.role==='mentor').map(u=>`<option value="${u.id}">${u.name} (${u.role})</option>`).join('');
-  const offboardList=`<optgroup label="Mentees">${S.mentees.filter(m=>!m.offboarded).map(m=>`<option value="mentee:${m.id}">👤 ${m.name} (${m.grade})</option>`).join('')}</optgroup><optgroup label="Mentors">${S.users.filter(u=>!u.offboarded&&u.id!==S.currentUser.id).map(u=>`<option value="mentor:${u.id}">🌱 ${u.name}</option>`).join('')}</optgroup>`;
+  const mentorOpts = _mentorPool.map(u=>`<option value="${escHtml(u.name)}">${escHtml(u.name)}</option>`).join('');
+  const menteeList= S.mentees.filter(m=>!m.offboarded).map(m=>`<option value="${escHtml(m.id)}">${escHtml(m.name)} (${escHtml(m.grade)})</option>`).join('');
+  const mentorList= S.users.filter(u=>!u.offboarded).map(u=>`<option value="${escHtml(u.id)}">${escHtml(u.name)} (${escHtml(u.role)})</option>`).join('');
+  const traineeList=S.users.filter(u=>u.role==='trainee'||u.role==='mentor').map(u=>`<option value="${escHtml(u.id)}">${escHtml(u.name)} (${escHtml(u.role)})</option>`).join('');
+  const offboardList=`<optgroup label="Mentees">${S.mentees.filter(m=>!m.offboarded).map(m=>`<option value="mentee:${escHtml(m.id)}">👤 ${escHtml(m.name)} (${escHtml(m.grade)})</option>`).join('')}</optgroup><optgroup label="Mentors">${S.users.filter(u=>!u.offboarded&&u.id!==S.currentUser.id).map(u=>`<option value="mentor:${escHtml(u.id)}">🌱 ${escHtml(u.name)}</option>`).join('')}</optgroup>`;
 
   function mRow(mentorOptsArg, provOptsArg) {
     var isMentor = S.currentUser.role !== 'admin';
     var mAttr = isMentor ? 'disabled style="background:var(--green-light);font-weight:700"' : '';
     var grades = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'];
-    var gradeOpts2 = grades.map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+    var gradeOpts2 = grades.map(function(g){return '<option value="'+escHtml(g)+'">'+escHtml(g)+'</option>';}).join('');
     // Use passed args or fall back to closure vars if available
     var mOpts = mentorOptsArg !== undefined ? mentorOptsArg : (typeof mentorOpts !== 'undefined' ? mentorOpts : '');
     var pOpts = provOptsArg  !== undefined ? provOptsArg  : (typeof provOpts  !== 'undefined' ? provOpts  : '');
@@ -9487,12 +9769,12 @@ function switchImportTab(id, btn) {
 
 function addMrRow() {
   const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
-  const provOpts  = provinces.map(p => `<option>${p}</option>`).join('');
+  const provOpts  = provinces.map(p => `<option>${escHtml(p)}</option>`).join('');
   const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
     ? S.users.filter(function(u){ return !u.offboarded && (u.id === _cu.id || u.leadMentor === _cu.name); })
     : S.users.filter(function(u){ return !u.offboarded; });
-  const mentorOpts = _mentorPool.map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
+  const mentorOpts = _mentorPool.map(u=>`<option value="${escHtml(u.name)}">${escHtml(u.name)}</option>`).join('');
   const row = `<tr>
     <td><input type="text" placeholder="Full name" style="min-width:130px"></td>
     <td><input type="date"></td>
@@ -9611,12 +9893,7 @@ function sheetsPost(action, data) {
     };
   }
 
-  fetch(CONFIG.apiUrl, {
-    method: 'POST',
-    mode:   'no-cors',
-    headers:{ 'Content-Type': 'text/plain' },
-    body:   JSON.stringify(payload)
-  }).catch(function(){});
+  scriptPost(payload).catch(function(){});
 }
 
 function processMenteeImport() {
@@ -9863,13 +10140,13 @@ function importSummary(imp,upd,off,skip,errs,prom,reas) {
   return `<div style="border-radius:10px;padding:1rem;background:${ok?'#f0fdf4':'#fef2f2'};border:1px solid ${ok?'#86efac':'#fecaca'}">
     <div style="font-weight:800;font-size:14px;color:${ok?'#166534':'#dc2626'};margin-bottom:.5rem">${ok?'✅ Import successful':'⚠️ Import completed with errors'}</div>
     <div style="font-size:13px;display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.4rem">
-      ${imp?`<span>✅ ${imp} imported</span>`:''}
-      ${upd?`<span>🔄 ${upd} updated</span>`:''}
-      ${prom?`<span>⬆️ ${prom} promoted</span>`:''}
-      ${reas?`<span>🔀 ${reas} reassigned</span>`:''}
-      ${off?`<span>🚫 ${off} offboarded</span>`:''}
+      ${imp?`<span>✅ ${escHtml(imp)} imported</span>`:''}
+      ${upd?`<span>🔄 ${escHtml(upd)} updated</span>`:''}
+      ${prom?`<span>⬆️ ${escHtml(prom)} promoted</span>`:''}
+      ${reas?`<span>🔀 ${escHtml(reas)} reassigned</span>`:''}
+      ${off?`<span>🚫 ${escHtml(off)} offboarded</span>`:''}
     </div>
-    ${errs.length?`<ul style="font-size:12px;color:#dc2626;padding-left:1.2rem;margin:0">${errs.map(e=>`<li>${e}</li>`).join('')}</ul>`:''}
+    ${errs.length?`<ul style="font-size:12px;color:#dc2626;padding-left:1.2rem;margin:0">${errs.map(e=>`<li>${escHtml(e)}</li>`).join('')}</ul>`:''}
   </div>`;
 }
 
@@ -9930,15 +10207,15 @@ function renderAuditHtml(filter) {
     <thead><tr><th>Timestamp</th><th>Action</th><th>Type</th><th>Name</th>
     <th>Field</th><th>Previous</th><th>New Value</th><th>Changed By</th><th>Notes</th></tr></thead>
     <tbody>${entries.map(e=>`<tr>
-      <td style="white-space:nowrap;font-size:11px">${e.timestamp}</td>
-      <td><span class="badge ${colorMap[e.action]||'bgr'}">${e.action}</span></td>
-      <td><span style="font-size:12px">${e.recordType}</span></td>
-      <td><strong>${e.name}</strong></td>
-      <td style="font-size:12px">${e.fieldChanged}</td>
-      <td style="font-size:12px;color:var(--light)">${e.prevValue}</td>
-      <td style="font-size:12px;font-weight:700">${e.newValue}</td>
-      <td style="font-size:12px">${e.changedBy}</td>
-      <td style="font-size:12px;color:var(--light)">${e.notes||'—'}</td>
+      <td style="white-space:nowrap;font-size:11px">${escHtml(e.timestamp)}</td>
+      <td><span class="badge ${escHtml(colorMap[e.action]||'bgr')}">${escHtml(e.action)}</span></td>
+      <td><span style="font-size:12px">${escHtml(e.recordType)}</span></td>
+      <td><strong>${escHtml(e.name)}</strong></td>
+      <td style="font-size:12px">${escHtml(e.fieldChanged)}</td>
+      <td style="font-size:12px;color:var(--light)">${escHtml(e.prevValue)}</td>
+      <td style="font-size:12px;font-weight:700">${escHtml(e.newValue)}</td>
+      <td style="font-size:12px">${escHtml(e.changedBy)}</td>
+      <td style="font-size:12px;color:var(--light)">${escHtml(e.notes||'—')}</td>
     </tr>`).join('')}</tbody></table></div>`;
 }
 
@@ -10079,9 +10356,9 @@ function addMenteeRow() {
   const tr = div.querySelector('tr') || (function(){
     // mRow is defined inside importPage scope — re-generate a row
     const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
-    const provOpts  = provinces.map(p => '<option value="'+p+'">'+p+'</option>').join('');
-    const mentorOpts= S.users.filter(function(u){return !u.offboarded;}).map(function(u){return '<option value="'+u.name+'">'+u.name+'</option>';}).join('');
-    const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+    const provOpts  = provinces.map(p => '<option value="'+escHtml(p)+'">'+escHtml(p)+'</option>').join('');
+    const mentorOpts= S.users.filter(function(u){return !u.offboarded;}).map(function(u){return '<option value="'+escHtml(u.name)+'">'+escHtml(u.name)+'</option>';}).join('');
+    const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(function(g){return '<option value="'+escHtml(g)+'">'+escHtml(g)+'</option>';}).join('');
     var genderOpts = '<option value="">—</option><option>Male</option><option>Female</option><option>Other</option>';
     var wifiOpts   = '<option value="">—</option><option value="Y">Y</option><option value="N">N</option>';
     var actionOpts = '<option value="Import" selected>Import</option><option value="Update">Update</option><option value="Offboard">Offboard</option>';
@@ -10254,15 +10531,15 @@ function handleExcelUpload(inputEl, type) {
         tbody.innerHTML = ''; // clear existing rows
 
         const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
-        const provOpts  = provinces.map(p => `<option value="${p}">${p}</option>`).join('');
+        const provOpts  = provinces.map(p => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join('');
         const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
     ? S.users.filter(function(u){ return !u.offboarded && (u.id === _cu.id || u.leadMentor === _cu.name); })
     : S.users.filter(function(u){ return !u.offboarded; });
-  const mentorOpts = _mentorPool.map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
-        const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(g=>`<option value="${g}">${g}</option>`).join('');
+  const mentorOpts = _mentorPool.map(u=>`<option value="${escHtml(u.name)}">${escHtml(u.name)}</option>`).join('');
+        const gradeOpts = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(g=>`<option value="${escHtml(g)}">${escHtml(g)}</option>`).join('');
 
-        const gradeOpts2 = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(function(g){return '<option value="'+g+'">'+g+'</option>';}).join('');
+        const gradeOpts2 = ['9','10','11','12','Tertiary','Post Matric','Post Matric - Mentorship Program','High School - Mentorship Program'].map(function(g){return '<option value="'+escHtml(g)+'">'+escHtml(g)+'</option>';}).join('');
         const isMentorUser = _cu && _cu.role !== 'admin';
         const mAttr = isMentorUser ? 'disabled style="background:var(--green-light);font-weight:700"' : '';
 
@@ -10297,7 +10574,7 @@ function handleExcelUpload(inputEl, type) {
 
           // Build row — must use <table><tbody> wrapper so browser parses <tr> correctly
           var _mOpts = '<option value="">—</option>';
-          _mentorPool.forEach(function(u){ _mOpts += '<option value="'+u.name+'">'+u.name+'</option>'; });
+          _mentorPool.forEach(function(u){ _mOpts += '<option value="'+escHtml(u.name)+'">'+escHtml(u.name)+'</option>'; });
           var tempTable = document.createElement('table');
           var tempTbody = document.createElement('tbody');
           tempTable.appendChild(tempTbody);
@@ -10423,12 +10700,12 @@ function handleExcelUpload(inputEl, type) {
         tbody.innerHTML = '';
 
         const provinces = ['Eastern Cape','Free State','Gauteng','KwaZulu Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'];
-        const provOpts  = provinces.map(p=>`<option value="${p}">${p}</option>`).join('');
+        const provOpts  = provinces.map(p=>`<option value="${escHtml(p)}">${escHtml(p)}</option>`).join('');
         const _cu = currentUser();
   const _mentorPool = (_cu && _cu.group === 'lead')
     ? S.users.filter(function(u){ return !u.offboarded && (u.id === _cu.id || u.leadMentor === _cu.name); })
     : S.users.filter(function(u){ return !u.offboarded; });
-  const mentorOpts = _mentorPool.map(u=>`<option value="${u.name}">${u.name}</option>`).join('');
+  const mentorOpts = _mentorPool.map(u=>`<option value="${escHtml(u.name)}">${escHtml(u.name)}</option>`).join('');
 
         dataRows.forEach(row => {
           const name      = val(row, ['name','full name','mentor']);
@@ -10499,10 +10776,15 @@ function handleExcelUpload(inputEl, type) {
   inputEl.value = ''; // reset so same file can be re-uploaded
 }
 
+// A value placed inside onclick="fn('…')": JS-escape it first, then HTML-escape the result (escHtml alone leaves a ' free to end the string)
+function jsq(v) {
+  return escHtml(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
 function escHtml(str) {
-  return String(str || '')
+  return String(str == null ? '' : str)
     .replace(/&/g,'&amp;')
     .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;')
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;');
 }
@@ -10530,6 +10812,7 @@ async function uploadFilesToDrive(session, files) {
 
 async function uploadViaSScript(session, files) {
   if (!files || !files.length) return;
+  if (S.sheetAccess === 'denied') { toast('🔑 This device needs the portal key before files can go to Drive. Ask your Co-Ordinator for a Share Data link.', 9000); setSyncStatus('err', 'Not uploaded — portal key needed'); return; }
   setSyncStatus('saving', 'Uploading evidence to Drive…');
 
   let uploaded = 0;
@@ -10578,12 +10861,7 @@ async function uploadViaSScript(session, files) {
       // silently failing to even reach the server. The actual Drive URL gets
       // written straight into this session's row by saveFile() server-side;
       // Pull Sheets → Local (or the next natural resync) will pick it up.
-      await fetch(CONFIG.apiUrl, {
-        method:  'POST',
-        mode:    'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body:    payload,
-      });
+      await scriptPost(payload);
 
       uploadedUrls.push('Sent to Drive: ' + file.name);
       uploaded++;
@@ -10715,7 +10993,7 @@ function adminPanel() {
     </p>
     <div class="fgrp" style="max-width:640px;margin-bottom:.8rem">
       <label>Google Apps Script Web App URL</label>
-      <input type="text" id="sheets-url" value="${CONFIG.apiUrl !== 'DEMO' ? CONFIG.apiUrl : ''}"
+      <input type="text" id="sheets-url" value="${escHtml(CONFIG.apiUrl !== 'DEMO' ? CONFIG.apiUrl : '')}"
         placeholder="https://script.google.com/macros/s/…/exec">
     </div>
     <div style="background:var(--green-light);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green-dark);margin-bottom:1rem">
@@ -10723,6 +11001,25 @@ function adminPanel() {
     </div>
     <button class="btn btn-primary" onclick="saveApiUrl()">💾 Save & Connect Sheets</button>
     ${sheetsConnected ? '<button class="btn btn-danger btn-sm" style="margin-left:8px" onclick="disconnectSheets()">Disconnect</button>' : ''}
+  </div>
+
+  <!-- PORTAL KEY -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-title">🔑 Portal key — keeps strangers out of the Sheet</div>
+      ${CONFIG.portalKey ? '<span class="badge bg">✅ This device has the key</span>' : '<span class="badge bo">No key on this device</span>'}
+    </div>
+    <p style="font-size:13px;color:var(--light);margin-bottom:1rem">
+      The script's address is written into the portal's page, so anyone could use it to read or change your data. With the key switched on in the script, only devices that hold the key can.
+      Paste the key from the script here. Mentors receive it automatically when they open a Share Data link made on a device that has it.
+    </p>
+    <div class="fgrp" style="max-width:640px;margin-bottom:.8rem">
+      <label>Portal key (from the script's createPortalKey)</label>
+      <input type="password" id="portal-key" value="${escHtml(CONFIG.portalKey || '')}" placeholder="Paste the key here" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" onclick="savePortalKey()">💾 Save key</button>
+    <button class="btn btn-outline" style="margin-left:8px" onclick="testPortalKey()">🧪 Check access</button>
+    <div id="portal-key-result" style="margin-top:1rem;font-size:13px"></div>
   </div>
 
   <!-- GOOGLE DRIVE CONNECTION -->
@@ -10738,7 +11035,7 @@ function adminPanel() {
     <div class="fg" style="max-width:640px;margin-bottom:.8rem">
       <div class="fgrp s2">
         <label>Google Drive Folder ID <span class="req">*</span></label>
-        <input type="text" id="drive-folder-id" value="${CONFIG.driveFolderId || ''}"
+        <input type="text" id="drive-folder-id" value="${escHtml(CONFIG.driveFolderId || '')}"
           placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
         <span style="font-size:11px;color:var(--light);margin-top:3px">
           From your Google Drive folder URL: drive.google.com/drive/folders/<strong>THIS_PART</strong>
@@ -10746,7 +11043,7 @@ function adminPanel() {
       </div>
       <div class="fgrp s2">
         <label>Google Drive API Key <span class="req">*</span></label>
-        <input type="password" id="drive-api-key" value="${CONFIG.driveApiKey || ''}"
+        <input type="password" id="drive-api-key" value="${escHtml(CONFIG.driveApiKey || '')}"
           placeholder="AIzaSy…">
         <span style="font-size:11px;color:var(--light);margin-top:3px">
           From Google Cloud Console → APIs & Services → Credentials → API Key (restrict to Drive API)
@@ -10839,7 +11136,7 @@ async function testSheets() {
   const url = CONFIG.apiUrl.trim();
   if (!url.includes('script.google.com') || !url.includes('/exec')) {
     el.innerHTML = diagBox('❌ URL format incorrect',
-      'The URL must look like:<br><code>https://script.google.com/macros/s/ABC.../exec</code><br>Your URL: <code>' + url + '</code>');
+      'The URL must look like:<br><code>https://script.google.com/macros/s/ABC.../exec</code><br>Your URL: <code>' + escHtml(url) + '</code>');
     return;
   }
 
@@ -10859,13 +11156,17 @@ async function testSheets() {
     // Test 2: Try cors mode to get actual response
     try {
       const r = await Promise.race([
-        fetch(url + '?action=ping&t=' + Date.now(), { method: 'GET', mode: 'cors' }),
+        fetch(scriptGetUrl('status', '&t=' + Date.now()), { method: 'GET', mode: 'cors' }),
         new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
       ]);
       if (r.ok) {
         const data = await r.json();
+        if (data.keyRequired === true && data.keyValid !== true) {
+          el.innerHTML = diagBox('🔑 The script needs the portal key', 'The script is reachable, but it requires a portal key and this device does not have a working one. Paste the key in the Portal key box, or open a Share Data link made on a device that has it.');
+          return;
+        }
         el.innerHTML = diagBox('✅ Google Sheets fully connected!',
-          (data.message || 'Apps Script is running.') + '<br>Sessions will sync automatically.', 'green');
+          (escHtml(data.message || 'Apps Script is running.')) + '<br>Sessions will sync automatically.', 'green');
         return;
       }
     } catch(corsErr) {
@@ -10881,10 +11182,10 @@ async function testSheets() {
 
   } catch(e) {
     el.innerHTML = diagBox('❌ Cannot reach Apps Script',
-      'Error: <strong>' + e.message + '</strong><br><br>' +
+      'Error: <strong>' + escHtml(e.message) + '</strong><br><br>' +
       'The URL is saved but unreachable. This is unusual since you confirmed it works in the browser.<br><br>' +
       'Try: Sign out of the portal, clear browser cache (Ctrl+Shift+Delete), and try again.<br>' +
-      'Also check: <code>' + url + '</code> — paste this in a new tab to confirm it shows JSON.');
+      'Also check: <code>' + escHtml(url) + '</code> — paste this in a new tab to confirm it shows JSON.');
   }
 }
 
@@ -10918,14 +11219,14 @@ async function testDrive() {
 
   el.innerHTML = '<span style="color:var(--gold)">⏳ Testing Drive access via Apps Script…</span>';
   try {
-    const url  = CONFIG.apiUrl + '?action=testDrive&folderId=' + encodeURIComponent(CONFIG.driveFolderId);
+    const url  = scriptGetUrl('testDrive', '&folderId=' + encodeURIComponent(CONFIG.driveFolderId));
     const data = await jsonpFetch(url);
     el.innerHTML = data.ok
-      ? '<span style="color:var(--green-dark);font-weight:700">✅ Google Drive connected! Folder: &quot;' + (data.folderName || CONFIG.driveFolderId) + '&quot;</span>'
-      : '<span style="color:#dc2626;font-weight:700">❌ Drive error: ' + (data.error || 'unknown') + '</span>' +
+      ? '<span style="color:var(--green-dark);font-weight:700">✅ Google Drive connected! Folder: &quot;' + (escHtml(data.folderName || CONFIG.driveFolderId)) + '&quot;</span>'
+      : '<span style="color:#dc2626;font-weight:700">❌ Drive error: ' + (escHtml(data.error || 'unknown')) + '</span>' +
         '<br><div style="font-size:12px;color:#dc2626;margin-top:6px">Check your Folder ID is correct (the long string in the Drive folder URL after /folders/)</div>';
   } catch(e) {
-    el.innerHTML = '<span style="color:#dc2626;font-weight:700">❌ ' + e.message + '</span>' +
+    el.innerHTML = '<span style="color:#dc2626;font-weight:700">❌ ' + escHtml(e.message) + '</span>' +
       '<br><div style="font-size:12px;color:#dc2626;margin-top:6px">Make sure your Apps Script is deployed and re-run Test Google Sheets first.</div>';
   }
 }
@@ -10942,13 +11243,13 @@ function buildUserRow(u) {
       : '🌿 Trainee Mentor';
   const offboardedBadge = u.offboarded ? '<span class="badge br" style="margin-left:6px">Offboarded</span>' : '';
   const youLabel = S.currentUser && u.id === S.currentUser.id ? '<span style="font-size:11px;color:var(--light);margin-left:6px">(you)</span>' : '';
-  const removeBtn = S.currentUser && u.id !== S.currentUser.id ? '<button class="btn btn-danger btn-sm" onclick="removeUser(\'' + u.id + '\')">✕</button>' : '';
+  const removeBtn = S.currentUser && u.id !== S.currentUser.id ? '<button class="btn btn-danger btn-sm" onclick="removeUser(\'' + jsq(u.id) + '\')">✕</button>' : '';
   return '<div class="pin-row">' +
-    '<div class="av sm">' + initials(u.name) + '</div>' +
-    '<div class="pin-row-name">' + u.name + offboardedBadge + youLabel + '</div>' +
-    '<span class="badge ' + roleClass + '" style="cursor:pointer;margin-right:8px" onclick="toggleRole(\'' + u.id + '\')" title="Click to change role">' + roleLabel + '</span>' +
-    '<input type="password" class="pin-input-sm" id="pin-change-' + u.id + '" placeholder="New PIN" maxlength="6" inputmode="numeric">' +
-    '<button class="btn btn-outline btn-sm" onclick="changePIN(\'' + u.id + '\')">Update PIN</button>' +
+    '<div class="av sm">' + escHtml(initials(u.name)) + '</div>' +
+    '<div class="pin-row-name">' + escHtml(u.name) + offboardedBadge + youLabel + '</div>' +
+    '<span class="badge ' + escHtml(roleClass) + '" style="cursor:pointer;margin-right:8px" onclick="toggleRole(\'' + jsq(u.id) + '\')" title="Click to change role">' + escHtml(roleLabel) + '</span>' +
+    '<input type="password" class="pin-input-sm" id="pin-change-' + escHtml(u.id) + '" placeholder="New PIN" maxlength="6" inputmode="numeric">' +
+    '<button class="btn btn-outline btn-sm" onclick="changePIN(\'' + jsq(u.id) + '\')">Update PIN</button>' +
     removeBtn +
     '</div>';
 }
@@ -10974,7 +11275,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610181800';
+  var _appVersion = '202610201300';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -11056,11 +11357,11 @@ function checkSessionReminders() {
       <span style="font-size:22px;flex-shrink:0">🔔</span>
       <div style="flex:1">
         <div style="font-weight:800;font-size:14px;color:var(--gold-dark);margin-bottom:4px">
-          Session${missing.length > 1 ? 's' : ''} Due — ${thisMonth}
+          Session${missing.length > 1 ? 's' : ''} Due — ${escHtml(thisMonth)}
         </div>
         <div style="font-size:12px;color:var(--mid);line-height:1.5">
           ${missing.length} mentee${missing.length > 1 ? 's' : ''} still need${missing.length === 1 ? 's' : ''} a session this month:<br>
-          <strong>${missing.slice(0,3).map(m=>m.name).join(', ')}${missing.length > 3 ? ' +' + (missing.length-3) + ' more' : ''}</strong>
+          <strong>${escHtml(missing.slice(0,3).map(m=>m.name).join(', '))}${missing.length > 3 ? ' +' + (missing.length-3) + ' more' : ''}</strong>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button onclick="navigate('capture');dismissReminder()" class="btn btn-gold btn-sm">✏️ Capture Now</button>
@@ -11118,17 +11419,18 @@ function evidenceLibraryPage() {
         <label>Mentee</label>
         <select id="ev-up-mentee" onchange="evLibMenteeChange()">
           <option value="">— Select mentee —</option>
-          ${myMentees.map(m => `<option value="${m.id}" data-name="${m.name}" data-grade="${m.grade||''}">${m.name} (${m.grade||''})</option>`).join('')}
+          ${myMentees.map(m => `<option value="${escHtml(m.id)}" data-name="${escHtml(m.name)}" data-grade="${escHtml(m.grade||'')}">${escHtml(m.name)} (${escHtml(m.grade||'')})</option>`).join('')}
         </select>
       </div>
       <div class="fgrp">
         <label>Month</label>
-        <select id="ev-up-month">
+        <select id="ev-up-month" onchange="evLibTargetHint()">
           <option value="">— Select month —</option>
-          ${MONTHS.map(m => `<option>${m}</option>`).join('')}
+          ${MONTHS.map(m => `<option>${escHtml(m)}</option>`).join('')}
         </select>
       </div>
     </div>
+    <div id="ev-up-target" class="ev-target" style="display:none"></div>
     <div class="upload-zone" id="ev-drop-zone" onclick="document.getElementById('ev-file-input').click()" style="margin-bottom:1rem">
       <div style="font-size:38px;margin-bottom:8px">📁</div>
       <p><strong>Click to upload</strong> or drag & drop</p>
@@ -11163,7 +11465,7 @@ function evidenceLibraryPage() {
       <label>Filter by Mentee</label>
       <select id="ev-filter" onchange="filterEvidence()">
         <option value="">All Mentees</option>
-        ${menteeKeys.map(k => `<option>${k}</option>`).join('')}
+        ${menteeKeys.map(k => `<option>${escHtml(k)}</option>`).join('')}
       </select>
     </div>
   </div>
@@ -11173,9 +11475,31 @@ function evidenceLibraryPage() {
 }
 
 // ── Evidence Library — mentee change: auto-fill drive link ───────
+// The one rule for where Library evidence goes: this mentor's session for that mentee and month (a real session before
+// an evidence-only record), else a waiting record is created. The hint and the upload both use it, so they cannot disagree.
+function evidenceTargetFor(menteeId, month) {
+  const matches = S.sessions.filter(function(s) { return s.menteeId === menteeId && s.month === month && s.mentorId === S.currentUser.id; });
+  return matches.find(function(s) { return !isEvidenceOnly(s); }) || matches[0] || null;
+}
+function evLibTargetHint() {
+  const el = document.getElementById('ev-up-target');
+  if (!el) return;
+  const menteeId = document.getElementById('ev-up-mentee')?.value;
+  const month    = document.getElementById('ev-up-month')?.value;
+  if (!menteeId || !month) { el.style.display = 'none'; return; }
+  const m  = S.mentees.find(function(mm) { return mm.id === menteeId; });
+  const nm = escHtml((m && m.name) || 'this mentee');
+  const t  = evidenceTargetFor(menteeId, month);
+  let h;
+  if (!t)                    h = '📎 No ' + escHtml(month) + ' session has been captured yet for <strong>' + nm + '</strong>. This evidence is kept for that session and joins it automatically when you capture it.';
+  else if (isEvidenceOnly(t)) h = '📎 This joins the evidence already waiting for <strong>' + nm + '</strong>’s ' + escHtml(month) + ' session, and becomes part of the session when you capture it.';
+  else                       h = '📎 This will be added to <strong>' + nm + '</strong>’s ' + escHtml(month) + ' session (' + escHtml(plainDate(String(t.date || '')) || 'no date') + ' · ' + escHtml(t.sessionTypes || 'session') + ').';
+  el.innerHTML = h; el.style.display = 'block';
+}
 function evLibMenteeChange() {
   const sel = document.getElementById('ev-up-mentee');
   const menteeId = sel?.value;
+  evLibTargetHint();
   if (!menteeId) return;
   const driveEl = document.getElementById('ev-up-drive-link');
   if (!driveEl) return;
@@ -11196,7 +11520,7 @@ function evLibHandleFiles(e) {
     const icon = f.type.startsWith('image/') ? '🖼️' : f.type === 'application/pdf' ? '📄' : '📝';
     const el = document.createElement('div');
     el.className = 'file-chip';
-    el.innerHTML = `<span style="font-size:18px">${icon}</span><span class="fc-name">${f.name} <span style="color:var(--light)">(${(f.size/1024).toFixed(0)}KB)</span></span><button class="fc-rm" onclick="this.closest('.file-chip').remove()">✕</button>`;
+    el.innerHTML = `<span style="font-size:18px">${escHtml(icon)}</span><span class="fc-name">${escHtml(f.name)} <span style="color:var(--light)">(${(f.size/1024).toFixed(0)}KB)</span></span><button class="fc-rm" onclick="this.closest('.file-chip').remove()">✕</button>`;
     document.getElementById('ev-files-list')?.appendChild(el);
   });
   e.target.value = '';
@@ -11225,6 +11549,7 @@ async function evLibUpload() {
   const driveEl  = document.getElementById('ev-up-drive-link');
   const descEl   = document.getElementById('ev-up-desc');
   const status   = document.getElementById('ev-up-status');
+  if (S.sheetAccess === 'denied') { if (status) { status.style.display = 'block'; status.innerHTML = '🔑 This device needs the portal key before files can go to Drive. Ask your Co-Ordinator for a Share Data link.'; } toast('🔑 Not uploaded — this device needs the portal key.', 9000); return; }
 
   const menteeId   = menteeEl?.value;
   const menteeName = menteeEl?.options[menteeEl.selectedIndex]?.getAttribute('data-name') || '';
@@ -11239,8 +11564,7 @@ async function evLibUpload() {
   if (status) { status.style.display = 'block'; status.style.color = 'var(--mid)'; status.textContent = '⏳ Saving…'; }
 
   // Find or create a session record for this mentee + month
-  const matches = S.sessions.filter(s => s.menteeId === menteeId && s.month === month && s.mentorId === S.currentUser.id);
-  let session = matches.find(s => !isEvidenceOnly(s)) || matches[0];
+  let session = evidenceTargetFor(menteeId, month);
   if (!session) {
     // Create a lightweight evidence-only session record
     const mentee = S.mentees.find(m => m.id === menteeId);
@@ -11300,12 +11624,7 @@ async function evLibUpload() {
         // Fire-and-forget via no-cors — matches every other write in this
         // app. The real Drive URL gets written straight into this session's
         // row by saveFile() server-side; it'll show up on next resync.
-        await fetch(CONFIG.apiUrl, {
-          method:  'POST',
-          mode:    'no-cors',
-          headers: { 'Content-Type': 'text/plain' },
-          body:    JSON.stringify(payload),
-        });
+        await scriptPost(payload);
         session.driveFileUrls = session.driveFileUrls
           ? session.driveFileUrls + ',sent:' + file.name
           : 'sent:' + file.name;
@@ -11348,12 +11667,13 @@ function renderEvidenceCards(byMentee, keys) {
   return keys.map(menteeName => {
     const sessions = byMentee[menteeName];
     const canClear = isFullAdmin();
+    const editable = new Set(scopedEvidenceRecords());
     return `
     <div class="card">
       <div class="card-hdr">
         <div class="card-title">
-          <div class="av sm">${initials(menteeName)}</div>
-          ${menteeName}
+          <div class="av sm">${escHtml(initials(menteeName))}</div>
+          ${escHtml(menteeName)}
           <span class="badge bg">${sessions.length} entr${sessions.length!==1?'ies':'y'}</span>
         </div>
       </div>
@@ -11361,28 +11681,29 @@ function renderEvidenceCards(byMentee, keys) {
         <table>
           <thead><tr>
             <th>Month</th><th>Session Type</th><th>Description</th>
-            <th>Evidence</th><th>Uploaded By</th>${canClear ? '<th></th>' : ''}
+            <th>Evidence</th><th>Uploaded By</th><th></th>${canClear ? '<th></th>' : ''}
           </tr></thead>
           <tbody>
           ${sessions.map(s => `<tr>
-            <td>${s.month||'—'}</td>
-            <td>${s.sessionTypes||'—'}</td>
-            <td style="font-size:12px;color:var(--light);max-width:200px">${s.evidenceDesc||'—'}</td>
+            <td>${escHtml(s.month||'—')}</td>
+            <td>${escHtml(s.sessionTypes||'—')}</td>
+            <td style="font-size:12px;color:var(--light);max-width:200px">${escHtml(s.evidenceDesc||'—')}</td>
             <td>
               ${(() => {
                 const evUrl = s.evidenceFolderUrl != null ? String(s.evidenceFolderUrl) : '';
                 return isHttpUrl(evUrl)
-                  ? `<a href="${evUrl}" target="_blank" class="btn btn-outline btn-sm">📁 Open in Drive</a>`
+                  ? `<a href="${escHtml(evUrl)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">📁 Open in Drive</a>`
                   : evUrl
-                    ? `<span class="badge bgr" style="font-size:11px">${evUrl.substring(0,40)}…</span>`
+                    ? `<span class="badge bgr" style="font-size:11px">${escHtml(evUrl.substring(0,40))}…</span>`
                     : '—';
               })()}
               ${s.driveFileUrls ? String(s.driveFileUrls).split(',').map(u => u.trim()).filter(isHttpUrl).map(u =>
-                `<a href="${u}" target="_blank" class="btn btn-outline btn-sm" style="margin-left:4px">📄 File</a>`
+                `<a href="${escHtml(u)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="margin-left:4px">📄 File</a>`
               ).join('') : ''}
             </td>
-            <td style="font-size:12px">${s.mentorName||'—'}</td>
-            ${canClear ? `<td><button class="btn btn-danger btn-sm" onclick="clearEvidence('${s.id}')">✕ Clear</button></td>` : ''}
+            <td style="font-size:12px">${escHtml(s.mentorName||'—')}</td>
+            <td>${editable.has(s) ? `<button class="btn btn-outline btn-sm" onclick="editSession('${jsq(s.id)}')">${isEvidenceOnly(s) ? '✏️ Add session details' : '✏️ Update'}</button>` : ''}</td>
+            ${canClear ? `<td><button class="btn btn-danger btn-sm" onclick="clearEvidence('${jsq(s.id)}')">✕ Clear</button></td>` : ''}
           </tr>`).join('')}
           </tbody>
         </table>
@@ -11425,7 +11746,7 @@ function pinResetPage() {
       <label>Your Name</label>
       <select id="pr-name" onchange="loadSecurityQuestion()">
         <option value="">— Select your name —</option>
-        ${S.users.filter(u=>!u.offboarded).map(u=>`<option value="${u.id}">${u.name}</option>`).join('')}
+        ${S.users.filter(u=>!u.offboarded).map(u=>`<option value="${escHtml(u.id)}">${escHtml(u.name)}</option>`).join('')}
       </select>
     </div>
     <div id="pr-question-section" style="display:none">
@@ -11476,7 +11797,7 @@ function setupSecurityQuestion(userId) {
       <div class="fgrp s2">
         <label>Security Question</label>
         <select id="sq-question">
-          ${questions.map(q=>`<option>${q}</option>`).join('')}
+          ${questions.map(q=>`<option>${escHtml(q)}</option>`).join('')}
         </select>
       </div>
       <div class="fgrp s2">
@@ -11484,7 +11805,7 @@ function setupSecurityQuestion(userId) {
         <input type="text" id="sq-answer" placeholder="Your answer (case-insensitive)">
       </div>
     </div>
-    <button class="btn btn-primary" style="margin-top:1rem" onclick="saveSecurityQuestion('${userId}')">💾 Save Security Question</button>
+    <button class="btn btn-primary" style="margin-top:1rem" onclick="saveSecurityQuestion('${jsq(userId)}')">💾 Save Security Question</button>
   </div>`;
 }
 
@@ -11601,12 +11922,14 @@ function onComeOnline() {
 function queueSessionOffline(session) {
   offlineQueue.push({ type: 'session', data: session, queuedAt: new Date().toISOString() });
   try { localStorage.setItem('lgm_offline_queue', JSON.stringify(offlineQueue)); } catch {}
-  toast('📥 Session saved locally. Will sync to Google Sheets when online.');
+  toast(S.sheetAccess === 'denied' ? '📥 Session saved on this phone. It will sync once this device has the portal key.' : '📥 Session saved locally. Will sync to Google Sheets when online.', S.sheetAccess === 'denied' ? 8000 : undefined);
 }
 
 async function syncOfflineQueue() {
   if (!navigator.onLine || !offlineQueue.length) return;
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return;
+  if (S.sheetAccess === undefined) await checkSheetAccess(true);        // never send into a refusal: a refused write is silent and would be dequeued as "synced"
+  if (S.sheetAccess === 'denied') return;
 
   const toSync = [...offlineQueue];
   let synced = 0;
@@ -11614,12 +11937,7 @@ async function syncOfflineQueue() {
   for (const item of toSync) {
     try {
       if (item.type === 'session') {
-        await fetch(CONFIG.apiUrl, {
-          method:  'POST',
-          mode:    'no-cors',
-          headers: { 'Content-Type': 'text/plain' },
-          body:    JSON.stringify({ action: 'addSession', data: item.data }),
-        });
+        await scriptPost({ action: 'addSession', data: item.data });
         synced++;
       }
     } catch(e) {
@@ -11660,7 +11978,7 @@ function printPortfolio(menteeId) {
 <html>
 <head>
 <meta charset="UTF-8">
-<title>LGM Portfolio — ${mentee.name}</title>
+<title>LGM Portfolio — ${escHtml(mentee.name)}</title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:Arial,sans-serif; font-size:12px; color:#142018; padding:20px; }
@@ -11704,15 +12022,15 @@ function printPortfolio(menteeId) {
 
 <div class="header">
   <div class="header-text">
-    <h1>Love and Grow Mentorship — Mentee Portfolio ${CONFIG.year}</h1>
-    <p>${mentee.name} &nbsp;·&nbsp; ${mentee.grade} &nbsp;·&nbsp; ${mentee.school||'—'} &nbsp;·&nbsp; Mentor: ${mentor?.name||'—'}</p>
+    <h1>Love and Grow Mentorship — Mentee Portfolio ${escHtml(CONFIG.year)}</h1>
+    <p>${escHtml(mentee.name)} &nbsp;·&nbsp; ${escHtml(mentee.grade)} &nbsp;·&nbsp; ${escHtml(mentee.school||'—')} &nbsp;·&nbsp; Mentor: ${escHtml(mentor?.name||'—')}</p>
   </div>
 </div>
 
 <div class="info-grid">
   <div class="info-box"><label>Sessions Captured</label><span>${sessions.length} of 12</span></div>
-  <div class="info-box"><label>Completion</label><span>${pct}%</span></div>
-  <div class="info-box"><label>Grade</label><span>${mentee.grade}</span></div>
+  <div class="info-box"><label>Completion</label><span>${escHtml(pct)}%</span></div>
+  <div class="info-box"><label>Grade</label><span>${escHtml(mentee.grade)}</span></div>
 </div>
 
 <div style="margin-bottom:16px">
@@ -11721,7 +12039,7 @@ function printPortfolio(menteeId) {
   <div style="display:flex;gap:6px;flex-wrap:wrap">
     ${MONTHS.map(m => {
       const s = sessions.find(x => x.month === m);
-      return `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${s?'#eaf7f1':'#f1f5f9'};color:${s?'#1a7a4c':'#94a3b8'};font-weight:${s?'700':'400'}">${m.substring(0,3)}${s?' ✓':''}</span>`;
+      return `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${s?'#eaf7f1':'#f1f5f9'};color:${s?'#1a7a4c':'#94a3b8'};font-weight:${s?'700':'400'}">${escHtml(m.substring(0,3))}${s?' ✓':''}</span>`;
     }).join('')}
   </div>
 </div>
@@ -11733,28 +12051,28 @@ ${sessions.length === 0 ? '<p style="color:#6a8a76;text-align:center;padding:2re
     return `
 <div class="session">
   <div class="session-header">
-    <h3>${s.month} ${CONFIG.year} — ${s.sessionTypes||'Session'}</h3>
-    <span>${s.date||''} &nbsp;·&nbsp; ${s.format||''} &nbsp;·&nbsp; ${s.duration||''}</span>
+    <h3>${escHtml(s.month)} ${escHtml(CONFIG.year)} — ${escHtml(s.sessionTypes||'Session')}</h3>
+    <span>${escHtml(s.date||'')} &nbsp;·&nbsp; ${escHtml(s.format||'')} &nbsp;·&nbsp; ${escHtml(s.duration||'')}</span>
   </div>
   <div class="session-body">
     <div class="session-grid">
-      ${s.checkinNotes ? `<div class="note-section"><label>Check-In</label><p>${s.checkinNotes}</p></div>` : ''}
-      ${s.schoolUpdate ? `<div class="note-section"><label>School Update</label><p>${s.schoolUpdate}</p></div>` : ''}
-      ${s.focusNotes   ? `<div class="note-section"><label>Session Focus</label><p>${s.focusNotes}</p></div>` : ''}
-      ${s.actionItems  ? `<div class="note-section"><label>Action Items</label><p>${s.actionItems}</p></div>` : ''}
-      ${s.goalShort    ? `<div class="note-section"><label>Short-Term Goal</label><p>${s.goalShort}</p></div>` : ''}
-      ${s.goalLong     ? `<div class="note-section"><label>Long-Term Goal</label><p>${s.goalLong}</p></div>` : ''}
+      ${s.checkinNotes ? `<div class="note-section"><label>Check-In</label><p>${escHtml(s.checkinNotes)}</p></div>` : ''}
+      ${s.schoolUpdate ? `<div class="note-section"><label>School Update</label><p>${escHtml(s.schoolUpdate)}</p></div>` : ''}
+      ${s.focusNotes   ? `<div class="note-section"><label>Session Focus</label><p>${escHtml(s.focusNotes)}</p></div>` : ''}
+      ${s.actionItems  ? `<div class="note-section"><label>Action Items</label><p>${escHtml(s.actionItems)}</p></div>` : ''}
+      ${s.goalShort    ? `<div class="note-section"><label>Short-Term Goal</label><p>${escHtml(s.goalShort)}</p></div>` : ''}
+      ${s.goalLong     ? `<div class="note-section"><label>Long-Term Goal</label><p>${escHtml(s.goalLong)}</p></div>` : ''}
     </div>
     <div style="display:flex;gap:12px;margin-top:8px;font-size:11px">
-      ${s.wellbeing        ? `<span><strong>Wellbeing:</strong> ${s.wellbeing}</span>` : ''}
-      ${parseInt(s.engagementRating||0)>0 ? `<span><strong>Engagement:</strong> ${'⭐'.repeat(parseInt(s.engagementRating))}</span>` : ''}
+      ${s.wellbeing        ? `<span><strong>Wellbeing:</strong> ${escHtml(s.wellbeing)}</span>` : ''}
+      ${parseInt(s.engagementRating||0)>0 ? `<span><strong>Engagement:</strong> ${escHtml('⭐'.repeat(parseInt(s.engagementRating)))}</span>` : ''}
     </div>
     ${subjects.length ? `
     <div class="subjects" style="margin-top:10px">
       <label style="font-size:10px;font-weight:700;color:#6a8a76;text-transform:uppercase;letter-spacing:.5px">Academic Results</label>
       <table>
         <thead><tr><th>Subject</th><th>${CONFIG.year-1} Final</th><th>T1 Goal</th><th>T1 Actual</th><th>T2 Goal</th><th>T2 Actual</th></tr></thead>
-        <tbody>${subjects.map(sub=>`<tr><td>${sub.subject||''}</td><td>${sub.finalMark||'—'}</td><td>${sub.t1Goal||'—'}</td><td>${sub.t1Actual||'—'}</td><td>${sub.t2Goal||'—'}</td><td>${sub.t2Actual||'—'}</td></tr>`).join('')}</tbody>
+        <tbody>${subjects.map(sub=>`<tr><td>${escHtml(sub.subject||'')}</td><td>${escHtml(sub.finalMark||'—')}</td><td>${escHtml(sub.t1Goal||'—')}</td><td>${escHtml(sub.t1Actual||'—')}</td><td>${escHtml(sub.t2Goal||'—')}</td><td>${escHtml(sub.t2Actual||'—')}</td></tr>`).join('')}</tbody>
       </table>
     </div>` : ''}
   </div>
@@ -11763,8 +12081,8 @@ ${sessions.length === 0 ? '<p style="color:#6a8a76;text-align:center;padding:2re
 }
 
 <div class="footer">
-  Love and Grow Mentorship &nbsp;·&nbsp; loveandgrowmentorship.org &nbsp;·&nbsp; ${CONFIG.year} Programme &nbsp;·&nbsp;
-  Generated ${new Date().toLocaleDateString('en-ZA')}
+  Love and Grow Mentorship &nbsp;·&nbsp; loveandgrowmentorship.org &nbsp;·&nbsp; ${escHtml(CONFIG.year)} Programme &nbsp;·&nbsp;
+  Generated ${escHtml(new Date().toLocaleDateString('en-ZA'))}
 </div>
 </body></html>`;
 
@@ -11820,8 +12138,8 @@ function complianceDashboard() {
   return `
   <div class="page-header gold">
     <h1>📊 Compliance Dashboard</h1>
-    <p>Session compliance for ${thisMonth} ${CONFIG.year} — who has captured, who hasn't.</p>
-    <span class="pill pill-white">${overallPct}% overall completion</span>
+    <p>Session compliance for ${escHtml(thisMonth)} ${escHtml(CONFIG.year)} — who has captured, who hasn't.</p>
+    <span class="pill pill-white">${escHtml(overallPct)}% overall completion</span>
   </div>
 
   <!-- Summary row -->
@@ -11846,8 +12164,8 @@ function complianceDashboard() {
   <!-- Overall progress bar -->
   <div class="card">
     <div class="card-hdr">
-      <div class="card-title">📅 ${thisMonth} ${CONFIG.year} — Programme Completion</div>
-      <span class="badge ${overallPct===100?'bg':'bo'}">${totalDone} of ${totalMentees} sessions captured</span>
+      <div class="card-title">📅 ${escHtml(thisMonth)} ${escHtml(CONFIG.year)} — Programme Completion</div>
+      <span class="badge ${overallPct===100?'bg':'bo'}">${escHtml(totalDone)} of ${escHtml(totalMentees)} sessions captured</span>
     </div>
     <div class="prog-wrap" style="height:12px;margin-bottom:1.5rem">
       <div class="prog-fill" style="width:${overallPct}%"></div>
@@ -11858,24 +12176,24 @@ function complianceDashboard() {
       <table>
         <thead><tr>
           <th>Mentor</th><th>Mentees</th><th>Done</th><th>Missing</th>
-          <th>${thisMonth} Progress</th><th>Status</th><th>Action</th>
+          <th>${escHtml(thisMonth)} Progress</th><th>Status</th><th>Action</th>
         </tr></thead>
         <tbody>
         ${mentorStats.sort((a,b) => a.pct - b.pct).map(m => `<tr>
-          <td><div class="av-row"><div class="av sm">${initials(m.mentor.name)}</div><strong>${m.mentor.name}</strong>${m.mentor.role === 'admin' ? ' <span class="badge bo" style="font-size:10px;margin-left:6px">Co-Ordinator</span>' : ''}</div></td>
+          <td><div class="av-row"><div class="av sm">${escHtml(initials(m.mentor.name))}</div><strong>${escHtml(m.mentor.name)}</strong>${m.mentor.role === 'admin' ? ' <span class="badge bo" style="font-size:10px;margin-left:6px">Co-Ordinator</span>' : ''}</div></td>
           <td>${m.myMentees.length}</td>
           <td style="color:var(--green-dark);font-weight:700">${m.menteesDone.length}</td>
           <td style="color:${m.menteesMissing.length>0?'#dc2626':'var(--green-dark)'};font-weight:700">${m.menteesMissing.length}</td>
           <td style="min-width:120px">
             <div style="display:flex;align-items:center;gap:8px">
               <div class="prog-wrap" style="flex:1"><div class="prog-fill ${m.pct<50?'gold':''}" style="width:${m.pct}%"></div></div>
-              <span style="font-size:11px;font-weight:700;color:var(--mid);white-space:nowrap">${m.pct}%</span>
+              <span style="font-size:11px;font-weight:700;color:var(--mid);white-space:nowrap">${escHtml(m.pct)}%</span>
             </div>
           </td>
-          <td><span class="badge ${statusBadge[m.status]}">${statusLabel[m.status]}</span></td>
+          <td><span class="badge ${escHtml(statusBadge[m.status])}">${escHtml(statusLabel[m.status])}</span></td>
           <td>
             ${m.menteesMissing.length > 0
-              ? `<div style="font-size:11px;color:var(--light)">${m.menteesMissing.map(x=>x.name).join(', ')}</div>`
+              ? `<div style="font-size:11px;color:var(--light)">${escHtml(m.menteesMissing.map(x=>x.name).join(', '))}</div>`
               : '<span style="font-size:11px;color:var(--green-dark)">All done ✓</span>'
             }
           </td>
@@ -11897,8 +12215,8 @@ function complianceDashboard() {
           <div style="height:80px;background:var(--soft);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden;margin-bottom:4px">
             <div style="width:100%;background:${m===thisMonth?'var(--gold)':'var(--green)'};height:${Math.max(4,pct)}%;border-radius:4px;transition:height .6s"></div>
           </div>
-          <div style="font-size:10px;font-weight:700;color:var(--mid)">${m.substring(0,3)}</div>
-          <div style="font-size:11px;font-weight:700;color:${m===thisMonth?'var(--gold-dark)':'var(--green-dark)'}">${cnt}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--mid)">${escHtml(m.substring(0,3))}</div>
+          <div style="font-size:11px;font-weight:700;color:${m===thisMonth?'var(--gold-dark)':'var(--green-dark)'}">${escHtml(cnt)}</div>
         </div>`;
       }).join('')}
     </div>
@@ -11972,7 +12290,7 @@ function showPinResetFromLogin() {
   const card = screen.querySelector('.login-card');
   if (!card) return;
 
-  const userOpts = users.map(u => '<option value="' + u.id + '">' + u.name + '</option>').join('');
+  const userOpts = users.map(u => '<option value="' + escHtml(u.id) + '">' + escHtml(u.name) + '</option>').join('');
 
   const noUsersHtml = '<div style="background:#fef6e8;border:1px solid var(--gold-mid);border-radius:var(--r-sm);padding:12px 16px;font-size:13px;color:var(--gold-dark);margin-bottom:1rem">'
     + '⚠️ No user data found in this browser. Ask your Coordinator to reset your PIN directly.'
@@ -12113,8 +12431,8 @@ function buildMobileNav() {
 
   const items = isAdmin ? adminItems : mentorItems;
   el.innerHTML = items.map(item =>
-    `<button class="mobile-nav-btn" onclick="navigate('${item.id}');closeMobileMenu()">
-      <span style="font-size:16px">${item.icon}</span> ${item.label}
+    `<button class="mobile-nav-btn" onclick="navigate('${jsq(item.id)}');closeMobileMenu()">
+      <span style="font-size:16px">${escHtml(item.icon)}</span> ${escHtml(item.label)}
     </button>`
   ).join('') + (isCoordinatorAccount()
     ? `<button class="mobile-nav-btn" style="margin-top:.6rem;border-top:1px dashed var(--soft);border-radius:0;padding-top:14px" onclick="toggleViewMode();closeMobileMenu()">
@@ -12128,9 +12446,11 @@ try {
   const savedUrl      = localStorage.getItem('lgm_api_url');
   const savedFolderId = localStorage.getItem('lgm_drive_folder_id');
   const savedApiKey   = localStorage.getItem('lgm_drive_api_key');
+  const savedPortalKey = localStorage.getItem('lgm_portal_key');
   if (savedUrl)      CONFIG.apiUrl       = savedUrl;
   if (savedFolderId) CONFIG.driveFolderId= savedFolderId;
   if (savedApiKey)   CONFIG.driveApiKey  = savedApiKey;
+  if (savedPortalKey) CONFIG.portalKey   = savedPortalKey;
 } catch {}
 
 </script>
