@@ -175,6 +175,12 @@ tbody tr:hover td{background:var(--green-light)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .view-switch{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:white;border-radius:999px;padding:6px 14px;font:700 12px 'Nunito',sans-serif;cursor:pointer;white-space:nowrap}
 .view-switch:hover{background:rgba(255,255,255,.3)}
+.field-missing{outline:3px solid #DC2626 !important;outline-offset:2px;border-radius:10px}
+.undo-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#E8F5EE;border:1px solid #BFE3CF;color:#14532D;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:14px}
+.undo-banner span{flex:1;min-width:180px}
+.undo-btn{background:#fff;color:#14532D;border:1.5px solid #14532D;border-radius:8px;padding:6px 14px;font-weight:800;font-size:13px;cursor:pointer}
+.undo-x{background:none;border:none;color:#14532D;font-size:16px;cursor:pointer;padding:4px 8px}
+.row-remove{background:none;border:none;color:#B91C1C;font-size:12px;font-weight:700;cursor:pointer;padding:2px 0;margin-top:2px;text-decoration:underline}
 .hamburger{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px;align-items:center;justify-content:center;flex-shrink:0}
 .mobile-menu{position:fixed;top:62px;left:0;right:0;bottom:0;background:rgba(20,32,24,.6);z-index:99;display:none}
 .mobile-menu.open{display:block}
@@ -7229,6 +7235,7 @@ function buildNav() {
 }
 
 function navigate(page) {
+  S.currentPage = page;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('nb-'+page)?.classList.add('active');
   const wrap = document.getElementById('page-wrap');
@@ -7503,6 +7510,7 @@ function capturePage() {
         </div>
       </div>
       <div id="month-topic-hint" style="display:none;margin-top:1rem"></div>
+      <div id="existing-session-hint" style="display:none;margin-top:.8rem;background:#FEF6E8;color:#92400E;border:1px solid #F5D9A8;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.5"></div>
     </div>
 
     <div class="card">
@@ -7869,9 +7877,49 @@ function loadMenteeSubjects(menteeId) {
   addSubjectRow(); addSubjectRow(); addSubjectRow();
 }
 
+// Is there already a session saved for this mentee in this month? (Evidence-only records are not sessions.)
+function existingSessionFor(menteeId, month) {
+  if (!menteeId || !month) return null;
+  const found = realSessions().filter(function(s) { return s.menteeId === menteeId && s.month === month; });
+  if (!found.length) return null;
+  found.sort(function(a, b) { return String(plainDate(String(b.date || ''))).localeCompare(String(plainDate(String(a.date || '')))); });
+  return { latest: found[0], count: found.length };
+}
+function describeExisting(ex) {
+  const s = ex.latest;
+  return (ex.count > 1 ? ex.count + ' sessions' : 'a session') + ' saved for ' + s.month +
+         ' (latest ' + plainDate(String(s.date || '')) + ', by ' + (s.mentorName || 'someone') + ')';
+}
+// An early warning, shown as soon as a mentee and month that already have a session are chosen
+function showExistingSessionHint() {
+  const el = document.getElementById('existing-session-hint');
+  if (!el) return;
+  const menteeId = document.getElementById('f-mentee')?.value;
+  const month    = document.getElementById('f-month')?.value;
+  const ex = existingSessionFor(menteeId, month);
+  if (!ex) { el.style.display = 'none'; return; }
+  const m = S.mentees.find(function(mm) { return mm.id === menteeId; });
+  el.innerHTML = '⚠️ <strong>' + escHtml((m && m.name) || 'This mentee') + '</strong> already has ' + escHtml(describeExisting(ex)) +
+                 '. Every save adds a NEW session — only save again if this is a genuinely separate session.';
+  el.style.display = 'block';
+}
+// Say exactly which required fields are missing, go to them, and outline them
+function flagMissingFields(missing) {
+  const detailsBtn = document.querySelector('.tab');          // the Save button is visible on every tab; the fields are not
+  if (detailsBtn) switchTab('t-details', detailsBtn);
+  document.querySelectorAll('.field-missing').forEach(function(e) { e.classList.remove('field-missing'); });
+  missing.forEach(function(m) { const el = document.getElementById(m.id); if (el) el.classList.add('field-missing'); });
+  const first = document.getElementById(missing[0].id);
+  if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(function() { document.querySelectorAll('.field-missing').forEach(function(e) { e.classList.remove('field-missing'); }); }, 6000);
+  const typesNote = missing.some(function(m) { return m.id === 'type-chips'; }) ? ' Tap the box under Session Type(s) and tick at least one.' : '';
+  toast('⚠️ Still needed: ' + missing.map(function(m) { return m.label; }).join(', ') + '.' + typesNote, 7000);
+}
+
 function onGradeChange() { showMonthTopic(); }
 
 function showMonthTopic() {
+  showExistingSessionHint();
   const grade = document.getElementById('f-grade')?.value;
   const month = document.getElementById('f-month')?.value;
   const hint  = document.getElementById('month-topic-hint');
@@ -8088,12 +8136,25 @@ function submitSession() {
   const grade    = document.getElementById('f-grade')?.value;
   const month    = document.getElementById('f-month')?.value;
 
-  if (!menteeId || !grade || !month || S.selectedSessionTypes.length === 0) {
-    toast('⚠️ Please fill in Mentee, Grade, Month and at least one Session Type'); return null;
-  }
+  const missing = [];
+  if (!menteeId)                           missing.push({ label: 'Mentee',          id: 'f-mentee' });
+  if (!grade)                              missing.push({ label: 'Grade',           id: 'f-grade' });
+  if (!month)                              missing.push({ label: 'Session Month',   id: 'f-month' });
+  if (S.selectedSessionTypes.length === 0) missing.push({ label: 'Session Type(s)', id: 'type-chips' });
+  if (missing.length) { flagMissingFields(missing); return null; }
 
   const opt = menteeEl.options[menteeEl.selectedIndex];
   const menteeName = opt.getAttribute('data-name') || '';
+
+  // Every save adds a NEW session and it cannot be undone in the portal, so ask before a likely repeat
+  const repeat = existingSessionFor(menteeId, month);
+  if (repeat && !confirm('⚠️ ' + menteeName + ' already has ' + describeExisting(repeat) + '.\n\n' +
+        'Saving now adds ANOTHER session, and a saved session cannot be edited or deleted in the portal.\n\n' +
+        'Press OK only if this really is a separate session. Otherwise press Cancel.')) {
+    sessionSubmitLock = false;
+    toast('Not saved — nothing was added.');
+    return null;
+  }
 
   const session = {
     id: 's' + Date.now(),
@@ -8170,7 +8231,7 @@ function submitSession() {
   // Take the mentor straight back to their mentee list — staying on the
   // capture form with no visible next step was the actual reported problem,
   // not just a documentation gap.
-  setTimeout(function(){ navigate(isFullAdmin() ? 'all-mentees' : 'my-mentees'); }, 1200);
+  setTimeout(function(){ navigate(isFullAdmin() ? 'all-mentees' : 'my-mentees'); showUndoBanner(session); }, 1200);
 
   return session;
 }
@@ -8273,12 +8334,13 @@ function captureFor(menteeId) {
 // ─────────────────────────────────────────────────────────────
 // SESSIONS TABLES
 // ─────────────────────────────────────────────────────────────
-function sessionsTable(sessions, showMentor=false) {
+function sessionsTable(sessions, showMentor=false, removable=false) {
   if (!sessions.length) return `<div class="empty"><div class="ei">📋</div><h3>No sessions yet</h3><p>Capture a session to see it here.</p></div>`;
+  const mine = removable ? new Set(scopedSessions()) : null;
   return `<div class="tbl-wrap"><table>
     <thead><tr><th>Mentee</th>${showMentor?'<th>Mentor</th>':''}<th>Grade</th><th>Month</th><th>Session Type(s)</th><th>Wellbeing</th><th>Date</th></tr></thead>
     <tbody>${sessions.map(s=>`<tr>
-      <td><strong>${s.menteeName||'—'}</strong></td>
+      <td><strong>${s.menteeName||'—'}</strong>${mine && mine.has(s) ? `<br><button class="row-remove" onclick="removeSession('${escHtml(String(s.id))}')">🗑️ Remove</button>` : ''}</td>
       ${showMentor?`<td>${s.mentorName||'—'}</td>`:''}
       <td><span class="badge bg">${s.grade||'—'}</span></td>
       <td>${s.month||'—'}</td>
@@ -8294,7 +8356,7 @@ function mySessionsPage() {
   return `<div class="page-header green"><h1>📋 My Sessions</h1><p>All your captured sessions for ${CONFIG.year}.</p></div>
   <div class="card">
     <div class="card-hdr"><div class="card-title">📋 ${sessions.length} Sessions</div><button class="btn btn-gold btn-sm" onclick="exportMyData()">⬇️ Export</button></div>
-    ${sessionsTable(sessions,false)}
+    ${sessionsTable(sessions,false,true)}
   </div>`;
 }
 
@@ -8309,7 +8371,7 @@ function allSessionsPage() {
         <select id="fg-month" onchange="filterSessions()"><option value="">All Months</option>${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select>
       </div>
     </div>
-    <div id="filtered-sessions">${sessionsTable(realSessions().slice().reverse(),true)}</div>
+    <div id="filtered-sessions">${sessionsTable(realSessions().slice().reverse(),true,true)}</div>
   </div>`;
 }
 
@@ -8322,7 +8384,7 @@ function filterSessions() {
   if (grade) filtered = filtered.filter(s=>s.grade===grade);
   if (month) filtered = filtered.filter(s=>s.month===month);
   const el = document.getElementById('filtered-sessions');
-  if(el) el.innerHTML = sessionsTable(filtered, true);
+  if(el) el.innerHTML = sessionsTable(filtered, true, true);
 }
 
 function allMenteesPage() {
@@ -8976,6 +9038,87 @@ function fileToBase64(file) {
 const EV_CHECK = { first: 6000, every: 5000, tries: 4 };
 
 // The session's evidenceFolderUrl as it is in the Sheet right now: '' = nothing there (or no row), null = couldn't find out.
+// ── Removing a session (Undo straight after saving, or 🗑️ Remove from the list) ─────────────────────────────
+// A person may remove exactly the sessions that appear in their own list, so nobody can remove what they cannot see:
+// a mentor their own, a lead their team's, the Co-Ordinator view any. Evidence-only records are cleared with ✕ Clear.
+function canRemoveSession(s) {
+  if (!s || isEvidenceOnly(s)) return false;
+  return scopedSessions().indexOf(s) !== -1;
+}
+
+// What the Google Sheet holds right now: a list of sessions, or null when we cannot tell (offline, no reply)
+function fetchSheetSessions() {
+  if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return Promise.resolve(null);
+  const ask = jsonpFetch(CONFIG.apiUrl + '?action=getData').then(function(res) {
+    return res && Array.isArray(res.sessions) ? res.sessions : null;
+  }).catch(function() { return null; });
+  const patience = new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 7000); });
+  return Promise.race([ask, patience]);
+}
+
+// Trust the Sheet, not the reply: an older script ignores the request and still says "ok". If the row is still there,
+// ask again (a removal tapped moments after saving can overtake the save itself), then say plainly what happened.
+function verifySessionRemoved(sessionId, resend) {
+  let tries = 0;
+  const check = function() {
+    tries++;
+    fetchSheetSessions().then(function(rows) {
+      const gone = rows && !rows.some(function(r) { return String(r.id) === String(sessionId); });
+      if (gone) { toast('✅ Removed from the Google Sheet too', 5000); return; }
+      if (tries < EV_CHECK.tries) { if (rows && resend) resend(); setTimeout(check, EV_CHECK.every); return; }
+      toast(rows
+        ? '⚠️ Removed here, but the Google Sheet still has this session. Ask your Co-Ordinator to remove that row (or update the Apps Script to v10).'
+        : '⚠️ Removed here, but we couldn’t check the Google Sheet. Check it before you rely on it.', 12000);
+    });
+  };
+  setTimeout(check, EV_CHECK.first);
+}
+
+function removeSession(sessionId, opts) {
+  opts = opts || {};
+  const s = S.sessions.find(function(x) { return String(x.id) === String(sessionId); });
+  if (!s) { toast('That session is no longer in the list.'); return; }
+  if (!canRemoveSession(s)) { toast('You can only remove sessions from your own list.'); return; }
+  const what = (s.menteeName || 'this mentee') + ' — ' + (s.month || '') + ' (' + (plainDate(String(s.date || '')) || 'no date') + ')';
+  const evNote = (s.evidenceFolderUrl || s.driveFileUrls) ? '\n\nThis session has evidence attached. The files in Google Drive are kept.' : '';
+  if (!confirm((opts.undo ? 'Undo this save?' : 'Remove this session?') + '\n\n' + what + '\nSaved by ' + (s.mentorName || 'unknown') + evNote +
+      '\n\nIt will be removed from the portal and the Google Sheet. A copy is kept on the Removed Sessions tab, so a Co-Ordinator can restore it.')) return;
+
+  S.sessions = S.sessions.filter(function(x) { return x !== s; });
+  logAudit('REMOVE_SESSION', 'Session', s.menteeName || '', 'session', what, '', 'Removed by ' + (currentUser() ? currentUser().name : ''));
+  persistState();
+  dismissUndoBanner();
+  toast('🗑️ Session removed');
+  if (CONFIG.apiUrl && CONFIG.apiUrl !== 'DEMO') {
+    const send = function() {
+      sheetsPost('deleteSession', { id: s.id, removedBy: currentUser() ? currentUser().name : '', reason: opts.undo ? 'undone in portal' : 'removed in portal' });
+    };
+    send();
+    verifySessionRemoved(s.id, send);
+  }
+  navigate(S.currentPage || 'dashboard');
+}
+
+// Shown on the page after a save: lasting proof that it worked (so nobody taps Save again), and a way back
+let _undoTimer = null;
+function dismissUndoBanner() {
+  clearTimeout(_undoTimer);
+  const el = document.getElementById('undo-banner');
+  if (el) el.remove();
+}
+function showUndoBanner(s) {
+  const wrap = document.getElementById('page-wrap');
+  if (!wrap || !s) return;
+  dismissUndoBanner();
+  const el = document.createElement('div');
+  el.id = 'undo-banner'; el.className = 'undo-banner';
+  el.innerHTML = '<span>✅ <strong>Saved:</strong> ' + escHtml(s.menteeName || '') + ' — ' + escHtml(s.month || '') + '. Saved by mistake?</span>' +
+    '<button class="undo-btn" onclick="removeSession(\'' + escHtml(String(s.id)) + '\', {undo:true})">↩ Undo</button>' +
+    '<button class="undo-x" onclick="dismissUndoBanner()" aria-label="Dismiss">✕</button>';
+  wrap.insertBefore(el, wrap.firstChild);
+  _undoTimer = setTimeout(dismissUndoBanner, 120000);
+}
+
 function sheetEvidenceUrl(sessionId) {
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') return Promise.resolve('');
   const ask = jsonpFetch(CONFIG.apiUrl + '?action=getData').then(function(res) {
@@ -10831,7 +10974,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610181100';
+  var _appVersion = '202610181800';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
