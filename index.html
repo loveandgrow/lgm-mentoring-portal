@@ -63,6 +63,9 @@ body{font-family:var(--font);background:var(--cream);color:var(--dark);min-heigh
 .user-av{width:28px;height:28px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white}
 .btn-icon{background:rgba(255,255,255,.12);border:none;color:white;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .btn-icon:hover{background:rgba(255,255,255,.25)}
+@keyframes lgmspin{to{transform:rotate(360deg)}}
+.btn-icon.busy{opacity:.6;pointer-events:none}
+.btn-icon.busy span{display:inline-block;animation:lgmspin .9s linear infinite}
 .page-wrap{padding:2rem;max-width:1300px;margin:0 auto;width:100%}
 .page-header{border-radius:var(--r);padding:2rem 2.5rem;margin-bottom:2rem;color:white;position:relative;overflow:hidden}
 .page-header.green{background:linear-gradient(135deg,var(--green) 0%,var(--green-dark) 100%)}
@@ -5026,6 +5029,7 @@ b8lobw34VHra4E87yU8gLCKEfdWp/qra9SyDUzGnhh/85v/Z" alt="LGM" class="topbar-logo">
         <span id="user-name-display">&mdash;</span>
       </div>
       <span id="online-indicator" style="margin-right:4px"></span>
+      <button class="btn-icon" id="refresh-btn" onclick="refreshMyData()" title="Refresh my data from the Google Sheet" aria-label="Refresh my data"><span>🔄</span></button>
       <button class="btn-icon" onclick="signOut()" title="Sign out">&#x238B;</button>
     </div>
   </header>
@@ -7225,7 +7229,7 @@ function launchApp() {
   buildNav();
   navigate('dashboard');
   initProductionFeatures();
-  checkSheetAccess();      // v11: is a portal key needed, and does this device's work? (launchApp is defined twice; this is the live one, the later definition)
+  checkSheetAccess().then(function(res) { if (res) autoRefreshAtSignIn(); });      // is a portal key needed, and does this device's work? then catch up with the Sheet. (launchApp is defined twice; this is the live one, the later definition)
 }
 
 function buildNav() {
@@ -9048,6 +9052,7 @@ function hardResetAndResync() {
         if (savedConfig.driveApiKey)   localStorage.setItem('lgm_drive_api_key',   savedConfig.driveApiKey);
       } catch(e) {}
 
+      rememberRemoteSessions(sessions);
       const msg = '✅ Reset complete — ' + sessions.length + ' session' + (sessions.length!==1?'s':'')
         + ', ' + mentees.length + ' mentee' + (mentees.length!==1?'s':'')
         + ', ' + users.length + ' user' + (users.length!==1?'s':'') + ' loaded. Reloading now…';
@@ -9106,6 +9111,7 @@ function keyQuery() { return CONFIG.portalKey ? '&key=' + encodeURIComponent(CON
 function scriptGetUrl(action, extra) { return CONFIG.apiUrl + '?action=' + action + (extra || '') + keyQuery(); }
 function scriptPost(body) {                                   // body: an object, or JSON text already built
   let o = typeof body === 'string' ? JSON.parse(body) : body;
+  noteWrite(o);
   if (CONFIG.portalKey) o = Object.assign({ key: CONFIG.portalKey }, o);
   return fetch(CONFIG.apiUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(o) });
 }
@@ -9132,6 +9138,135 @@ function checkSheetAccess(skipQueue) {
     if (!denied && !skipQueue && typeof offlineQueue !== 'undefined' && offlineQueue.length && navigator.onLine) syncOfflineQueue();
     return res;
   }).catch(function() { return null; });
+}
+
+// ── Refresh my data: catch THIS device up with the Google Sheet without replacing what is on it ─────────────────
+// A device only holds the copy it was last given, so a session saved on the desktop never reaches the phone by itself, and mentors cannot use
+// Pull Sheets → Local (Admin Panel only). This adds what is missing, updates what the Sheet has changed, and drops sessions the Sheet no longer
+// has. It never touches anything still on its way to the Sheet, and it never runs over a half-filled form.
+const REFRESH_QUIET_MS = 3 * 60 * 1000;
+let _refreshBusy = false;
+function noteWrite(o) {
+  try {
+    if (!o) return;
+    S._recent = S._recent || {};
+    if (o.action === 'uploadFile' && o.data && o.data.sessionId) { S._recent['s:' + o.data.sessionId] = Date.now(); return; }
+    const id = o.data && o.data.id; if (id == null || id === '') return;
+    if (o.action === 'addSession') S._recent['s:' + id] = Date.now();
+    else if (o.action === 'addMentee') S._recent['m:' + id] = Date.now();
+    else if (o.action === 'deleteSession') S._recent['x:' + id] = Date.now();
+  } catch (e) {}
+}
+function recentWrite(key) { const t = (S._recent || {})[key]; return !!t && (Date.now() - t) < REFRESH_QUIET_MS; }
+function pendingSessionIds() {
+  const ids = new Set();
+  try { (offlineQueue || []).forEach(function(q) { if (q && q.type === 'session' && q.data && q.data.id != null) ids.add(String(q.data.id)); }); } catch (e) {}
+  return ids;
+}
+function knownSessionIds() { try { return new Set(JSON.parse(localStorage.getItem('lgm_known_sessions') || '[]').map(String)); } catch (e) { return new Set(); } }
+function rememberRemoteSessions(list) { try { localStorage.setItem('lgm_known_sessions', JSON.stringify((list || []).map(function(s) { return String(s.id); }))); } catch (e) {} }
+function refreshScope() {                                   // whose records this person's device may gain
+  const u = S.currentUser; if (!u) return { all: false, ids: new Set() };
+  if (isCoordinatorAccount()) return { all: true, ids: new Set() };      // the real account, in either view (S.currentUser is wrapped as a mentor in team view)
+  const ids = new Set([String(u.id)]);
+  (S.users || []).forEach(function(x) { if (x.leadMentor === u.name) ids.add(String(x.id)); });
+  return { all: false, ids: ids };
+}
+function mergeOne(local, remote, guard) {                   // only the fields that differ; a blank in the Sheet never wipes a link or note held here
+  const changes = {};
+  Object.keys(remote).forEach(function(k) {
+    const a = local[k] == null ? '' : String(local[k]), b = remote[k] == null ? '' : String(remote[k]);
+    if (a === b) return;
+    if (guard && b === '' && a !== '' && guard.indexOf(k) !== -1) return;
+    changes[k] = remote[k];
+  });
+  return changes;
+}
+// Quietly refresh when someone signs in, so most people never need the button. Once per minute at most; never offline; never if the script refused the key.
+function autoRefreshAtSignIn() {
+  if (!navigator.onLine || S.sheetAccess === 'denied') return;
+  if (Date.now() - (S._autoRefreshAt || 0) < 60000) return;
+  S._autoRefreshAt = Date.now();
+  refreshMyData({ quiet: true });
+}
+function refreshMyData(opts) {
+  const quiet = !!(opts && opts.quiet === true);            // true only when the portal asks (at sign-in); a tap, or an inline handler, never passes it
+  if (_refreshBusy) return;
+  if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') { if (!quiet) toast('Google Sheets is not connected on this device.', 6000); return; }
+  if (!navigator.onLine) { if (!quiet) toast('📴 You are offline. Connect to the internet, then tap Refresh.', 6000); return; }
+  if (S.currentPage === 'capture') { if (!quiet) toast('Finish or leave this session first, then tap Refresh.', 6000); return; }
+  const startPage = S.currentPage;
+  _refreshBusy = true;
+  const btn = document.getElementById('refresh-btn'); if (btn) btn.classList.add('busy');
+  jsonpFetch(scriptGetUrl('getData')).then(function(res) {
+    if (!S.currentUser) return;                             // signed out while it ran
+    if (S.currentPage === 'capture') {                      // the Capture page was opened while it ran: never change data under a form
+      if (!quiet) toast('Not refreshed: you opened the Capture page. Tap Refresh again when you are done.', 7000);
+      return;
+    }
+    if (!res || typeof res !== 'object') throw new Error('no reply');
+    if (res.error) throw new Error(res.error);
+    const remoteS = normalizeSheetDates(Array.isArray(res.sessions) ? res.sessions : [], ['date']);
+    const remoteM = normalizeSheetDates(Array.isArray(res.mentees)  ? res.mentees  : [], ['dob', 'offboardDate']);
+    if (remoteM.length === 0 && S.mentees.length > 0) throw new Error('the Sheet returned no mentees, so nothing was changed');
+    const scope = refreshScope(), pending = pendingSessionIds();
+    const inScope = function(r) { return scope.all || scope.ids.has(String(r.mentorId)); };
+    const rep = { sNew: 0, sUpd: 0, sGone: 0, mNew: 0, mUpd: 0, kept: 0, suspicious: 0 };
+    // sessions: add what is missing, update what changed
+    const byS = new Map(S.sessions.map(function(s) { return [String(s.id), s]; })), remoteIds = new Set();
+    remoteS.forEach(function(r) {
+      if (!r || r.id == null || r.id === '') return;
+      const id = String(r.id); remoteIds.add(id);
+      const mine = byS.get(id);
+      if (!mine) { if (inScope(r) && !recentWrite('x:' + id)) { S.sessions.push(r); rep.sNew++; } return; }
+      if (pending.has(id) || recentWrite('s:' + id)) { rep.kept++; return; }
+      const ch = mergeOne(mine, r, ['evidenceFolderUrl', 'evidenceDesc']);
+      if (Object.keys(ch).length) { Object.assign(mine, ch); rep.sUpd++; }
+    });
+    // sessions the Sheet HAD when we last looked and no longer has: removed on another device. (Never on a guess, and never in bulk.)
+    const known = knownSessionIds();
+    if (known.size) {
+      const gone = Array.from(known).filter(function(id) { return !remoteIds.has(id) && byS.has(id) && !pending.has(id) && !recentWrite('s:' + id); });
+      const cap = Math.max(3, Math.ceil(known.size * 0.25));
+      if (gone.length && gone.length <= cap) { const g = new Set(gone); S.sessions = S.sessions.filter(function(s) { return !g.has(String(s.id)); }); rep.sGone = gone.length; }
+      else if (gone.length > cap) rep.suspicious = gone.length;
+    }
+    if (!rep.suspicious) rememberRemoteSessions(remoteS);
+    // mentees: add what is missing (this also brings back one removed by mistake on this device), update what changed
+    const byM = new Map(S.mentees.map(function(m) { return [String(m.id), m]; }));
+    remoteM.forEach(function(r) {
+      if (!r || r.id == null || r.id === '') return;
+      const id = String(r.id), mine = byM.get(id);
+      if (!mine) { if (inScope(r)) { S.mentees.push(r); rep.mNew++; } return; }
+      if (recentWrite('m:' + id)) { rep.kept++; return; }
+      const ch = mergeOne(mine, r, null);
+      if (Object.keys(ch).length) { Object.assign(mine, ch); rep.mUpd++; }
+    });
+    persistState();
+    const plural = function(n, w) { return n + ' ' + w + (n !== 1 ? 's' : ''); }, parts = [];
+    if (rep.sNew) parts.push(plural(rep.sNew, 'new session'));
+    if (rep.sUpd) parts.push(plural(rep.sUpd, 'session') + ' updated');
+    if (rep.sGone) parts.push(plural(rep.sGone, 'session') + ' removed (gone from the Sheet)');
+    if (rep.mNew) parts.push(plural(rep.mNew, 'new mentee'));
+    if (rep.mUpd) parts.push(plural(rep.mUpd, 'mentee') + ' updated');
+    const changed = parts.length > 0, moved = quiet && S.currentPage !== startPage;
+    let msg = changed ? (quiet ? '🔄 Updated from the Google Sheet: ' : '✅ Refreshed: ') + parts.join(', ') + '.' : '✅ Already up to date.';
+    if (rep.kept && !quiet) msg += ' ' + rep.kept + ' still waiting to send, left alone.';
+    if (rep.suspicious) msg += ' ⚠️ ' + rep.suspicious + ' sessions look removed in the Sheet, so nothing was deleted here. Ask a Co-Ordinator to check the Sheet.';
+    if (moved && changed) msg += ' Reopen the page to see it.';                         // they went elsewhere while it ran: do not redraw under them
+    if (!quiet || changed || rep.suspicious) toast(msg, rep.suspicious ? 12000 : 6000);   // quiet says nothing when nothing changed
+    if (rep.sNew || rep.sUpd || rep.sGone) {                                              // a monthly reminder still on screen may now be out of date
+      const rb = document.getElementById('reminder-banner');
+      if (rb) { rb.remove(); try { checkSessionReminders(); } catch (e) {} }
+    }
+    if (!quiet || (changed && !moved)) navigate(S.currentPage || 'dashboard');
+  }).catch(function(err) {
+    const m = String((err && err.message) || err);
+    if (/unauthori[sz]ed/i.test(m)) { S.sheetAccess = 'denied'; renderAccessBanner(true); if (!quiet) toast('🔑 Not refreshed: ' + sheetErrorText(m), 9000); }
+    else if (quiet) { /* stay quiet: the Refresh button is still there */ }
+    else if (/script_blocked|timeout|no reply|fetch/i.test(m)) toast('❌ Could not reach the Google Sheet. Try again in a moment, or ask a Co-Ordinator for a Share Data link.', 9000);
+    else toast('❌ Not refreshed: ' + m, 9000);
+  }).then(function() { _refreshBusy = false; const b = document.getElementById('refresh-btn'); if (b) b.classList.remove('busy'); });
 }
 
 function jsonpFetch(url) {
@@ -9181,6 +9316,7 @@ function resyncFromSheets() {
       S.sessions = sessions;
       S.mentees  = mentees;
       persistState();
+      rememberRemoteSessions(sessions);
       const msg = '✅ Resynced — ' + sessions.length + ' session' + (sessions.length!==1?'s':'') + ' and ' + mentees.length + ' mentee' + (mentees.length!==1?'s':'') + ' loaded from Sheets.';
       if (status) { status.innerHTML = msg; status.style.color = 'var(--green-dark)'; }
       toast('✅ Resynced from Google Sheets!');
@@ -11318,7 +11454,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610201400';
+  var _appVersion = '202610201600';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
@@ -12478,7 +12614,7 @@ function buildMobileNav() {
     `<button class="mobile-nav-btn" onclick="navigate('${jsq(item.id)}');closeMobileMenu()">
       <span style="font-size:16px">${escHtml(item.icon)}</span> ${escHtml(item.label)}
     </button>`
-  ).join('') + (isCoordinatorAccount()
+  ).join('') + `<button class="mobile-nav-btn" onclick="refreshMyData();closeMobileMenu()"><span style="font-size:16px">🔄</span> Refresh my data</button>` + (isCoordinatorAccount()
     ? `<button class="mobile-nav-btn" style="margin-top:.6rem;border-top:1px dashed var(--soft);border-radius:0;padding-top:14px" onclick="toggleViewMode();closeMobileMenu()">
          <span style="font-size:16px">${S.viewMode === 'team' ? '👑' : '👤'}</span> ${S.viewMode === 'team' ? 'Co-Ordinator view (everything)' : 'My team view'}
        </button>` : '');
