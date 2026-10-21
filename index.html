@@ -7229,6 +7229,7 @@ function launchApp() {
   buildNav();
   navigate('dashboard');
   initProductionFeatures();
+  S._lastActive = Date.now();
   checkSheetAccess().then(function(res) { if (res) autoRefreshAtSignIn(); });      // is a portal key needed, and does this device's work? then catch up with the Sheet. (launchApp is defined twice; this is the live one, the later definition)
 }
 
@@ -9182,6 +9183,24 @@ function mergeOne(local, remote, guard) {                   // only the fields t
   });
   return changes;
 }
+// ── Refresh when the app comes back after a long absence ─────────────────────────────────────────────────────
+// A phone app or a tab can stay open for days and never see a sign-in. When it comes back to the front after about twenty minutes of nobody
+// touching it, catch up quietly. Short trips (the camera, WhatsApp) do nothing, and the Capture page, an open overlay, being offline or a
+// refused key all skip it. Pages with a form on them are updated underneath but not redrawn, so a half-filled upload survives a camera trip.
+const AWAY_MS = 20 * 60 * 1000;
+const SAFE_REDRAW_PAGES = ['dashboard', 'my-sessions', 'all-sessions', 'compliance'];
+function noteActive() { const t = Date.now(); if (t - (S._lastActive || 0) > 5000) S._lastActive = t; }
+['pointerdown', 'keydown', 'touchstart'].forEach(function(ev) { document.addEventListener(ev, noteActive, { passive: true, capture: true }); });
+function maybeRefreshOnReturn() {
+  if (!S.currentUser || document.visibilityState === 'hidden' || !navigator.onLine || S.sheetAccess === 'denied') return;
+  if (S.currentPage === 'capture' || document.getElementById('share-overlay') || document.getElementById('setup-overlay')) return;
+  if (Date.now() - Math.max(S._lastActive || 0, S._lastRefreshAt || 0) < AWAY_MS) return;
+  S._lastRefreshAt = Date.now();                              // claim it now, so the focus and visibility events that arrive together make one request
+  refreshMyData({ quiet: true, safeRedrawOnly: true });
+}
+document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') maybeRefreshOnReturn(); });
+window.addEventListener('focus', maybeRefreshOnReturn);
+
 // Quietly refresh when someone signs in, so most people never need the button. Once per minute at most; never offline; never if the script refused the key.
 function autoRefreshAtSignIn() {
   if (!navigator.onLine || S.sheetAccess === 'denied') return;
@@ -9190,12 +9209,14 @@ function autoRefreshAtSignIn() {
   refreshMyData({ quiet: true });
 }
 function refreshMyData(opts) {
-  const quiet = !!(opts && opts.quiet === true);            // true only when the portal asks (at sign-in); a tap, or an inline handler, never passes it
+  const quiet = !!(opts && opts.quiet === true);            // true only when the portal asks (at sign-in, or on coming back); a tap, or an inline handler, never passes it
+  const safeOnly = !!(opts && opts.safeRedrawOnly === true);   // coming back: only redraw a page with nothing half-typed on it
   if (_refreshBusy) return;
   if (!CONFIG.apiUrl || CONFIG.apiUrl === 'DEMO') { if (!quiet) toast('Google Sheets is not connected on this device.', 6000); return; }
   if (!navigator.onLine) { if (!quiet) toast('📴 You are offline. Connect to the internet, then tap Refresh.', 6000); return; }
   if (S.currentPage === 'capture') { if (!quiet) toast('Finish or leave this session first, then tap Refresh.', 6000); return; }
   const startPage = S.currentPage;
+  S._lastRefreshAt = Date.now();
   _refreshBusy = true;
   const btn = document.getElementById('refresh-btn'); if (btn) btn.classList.add('busy');
   jsonpFetch(scriptGetUrl('getData')).then(function(res) {
@@ -9250,16 +9271,17 @@ function refreshMyData(opts) {
     if (rep.mNew) parts.push(plural(rep.mNew, 'new mentee'));
     if (rep.mUpd) parts.push(plural(rep.mUpd, 'mentee') + ' updated');
     const changed = parts.length > 0, moved = quiet && S.currentPage !== startPage;
+    const canRedraw = !safeOnly || SAFE_REDRAW_PAGES.indexOf(S.currentPage) !== -1;
     let msg = changed ? (quiet ? '🔄 Updated from the Google Sheet: ' : '✅ Refreshed: ') + parts.join(', ') + '.' : '✅ Already up to date.';
     if (rep.kept && !quiet) msg += ' ' + rep.kept + ' still waiting to send, left alone.';
     if (rep.suspicious) msg += ' ⚠️ ' + rep.suspicious + ' sessions look removed in the Sheet, so nothing was deleted here. Ask a Co-Ordinator to check the Sheet.';
-    if (moved && changed) msg += ' Reopen the page to see it.';                         // they went elsewhere while it ran: do not redraw under them
+    if (changed && (moved || !canRedraw)) msg += ' Reopen the page to see it.';          // they went elsewhere, or this page may hold something half-typed: do not redraw under them
     if (!quiet || changed || rep.suspicious) toast(msg, rep.suspicious ? 12000 : 6000);   // quiet says nothing when nothing changed
     if (rep.sNew || rep.sUpd || rep.sGone) {                                              // a monthly reminder still on screen may now be out of date
       const rb = document.getElementById('reminder-banner');
       if (rb) { rb.remove(); try { checkSessionReminders(); } catch (e) {} }
     }
-    if (!quiet || (changed && !moved)) navigate(S.currentPage || 'dashboard');
+    if (!quiet || (changed && !moved && canRedraw)) navigate(S.currentPage || 'dashboard');
   }).catch(function(err) {
     const m = String((err && err.message) || err);
     if (/unauthori[sz]ed/i.test(m)) { S.sheetAccess = 'denied'; renderAccessBanner(true); if (!quiet) toast('🔑 Not refreshed: ' + sheetErrorText(m), 9000); }
@@ -11454,7 +11476,7 @@ function buildTestCard(sheetsConnected, driveConnected) {
   }
 window.addEventListener('DOMContentLoaded', () => {
   // Version check — if app version changed, force fresh reload
-  var _appVersion = '202610201600';
+  var _appVersion = '202610201700';
   var _storedVersion = '';
   try { _storedVersion = localStorage.getItem('lgm_app_version') || ''; } catch(e) {}
   if (_storedVersion && _storedVersion !== _appVersion) {
